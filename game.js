@@ -22,7 +22,7 @@ const ROSTER = [
   { id: 'watol',      name: 'Watol Wszechwładny', title: 'Wszechwładny',  glove: '#9b5cff', speed: 1.00, power: 1.50, legendary: true, taunt: 'Wszechwładza nie pyta o zgodę.' },
 ];
 
-const VERSION = 'v22';
+const VERSION = 'v23';
 const BASE_HP = 100;
 const METER_MAX = 100;
 
@@ -1910,11 +1910,11 @@ const CASINO = {
       return;
     }
     const cur = b.hands[b.cur]; const done = b.phase === 'done';
-    g.innerHTML = `<div class="bj"><div class="bj-msg ${b.msgLose ? 'lose' : ''}">${b.msg || ''}</div>
-      <div class="hand"><div class="hand-label">KRUPIER${done || b.reveal ? `<b>${this.val(b.dealer)}</b>` : ''}</div><div class="cards">${b.dealer.map((c, i) => card(c, i === 1 && !b.reveal && !done)).join('')}</div></div>
+    g.innerHTML = `<div class="bj ${b.hands.length >= 3 ? 'many' : ''}"><div class="bj-msg ${b.msgLose ? 'lose' : ''}">${b.msg || ''}</div>
+      <div class="hand dealer"><div class="hand-label">KRUPIER${done || b.reveal ? `<b>${this.val(b.dealer)}</b>` : ''}</div><div class="cards">${b.dealer.map((c, i) => card(c, i === 1 && !b.reveal && !done)).join('')}</div></div>
       ${b.hands.map((h, i) => `<div class="hand ${!done && i === b.cur ? 'active' : ''}"><div class="hand-label">TY${b.hands.length > 1 ? ' ' + (i + 1) : ''} • ${h.bet}<b>${this.val(h.cards)}${h.result ? ' • ' + h.result : ''}</b></div><div class="cards">${h.cards.map((c) => card(c)).join('')}</div></div>`).join('')}
       ${b.phase === 'insure' ? `<div class="bj-ins">Krupier ma asa. Ubezpieczenie kosztuje <b>${b.insCost}</b> i płaci <b>2:1</b>, jeśli krupier ma blackjacka.</div>` : ''}
-      <div class="bj-ctrl">${done ? `<button class="btn btn-primary" id="bj-again">JESZCZE RAZ</button><button class="btn btn-ghost" id="bj-new">Zmień stawkę</button>` : b.dealing ? '<span class="t-hint">Krupier wykłada karty...</span>' : b.phase === 'insure' ? `<button class="btn btn-primary" id="bj-ins-yes" ${this.chips() < b.insCost ? 'disabled' : ''}>🛡️ UBEZPIECZ (${b.insCost})</button><button class="btn" id="bj-ins-no">NIE, GRAM</button>` : `<button class="btn btn-primary" id="bj-hit">DOBIERZ</button><button class="btn" id="bj-stand">STÓJ</button>${cur.cards.length === 2 && this.chips() >= cur.bet ? `<button class="btn" id="bj-double">PODWÓJ</button>` : ''}${cur.cards.length === 2 && b.hands.length === 1 && this.rank(cur.cards[0]) === this.rank(cur.cards[1]) && this.chips() >= cur.bet ? `<button class="btn" id="bj-split">SPLIT</button>` : ''}`}</div></div>`;
+      <div class="bj-ctrl">${done ? `<button class="btn btn-primary" id="bj-again">JESZCZE RAZ</button><button class="btn btn-ghost" id="bj-new">Zmień stawkę</button>` : b.dealing ? '<span class="t-hint">Krupier wykłada karty...</span>' : b.phase === 'insure' ? `<button class="btn btn-primary" id="bj-ins-yes" ${this.chips() < b.insCost ? 'disabled' : ''}>🛡️ UBEZPIECZ (${b.insCost})</button><button class="btn" id="bj-ins-no">NIE, GRAM</button>` : `<button class="btn btn-primary" id="bj-hit">DOBIERZ</button><button class="btn" id="bj-stand">STÓJ</button>${cur.cards.length === 2 && this.chips() >= cur.bet ? `<button class="btn" id="bj-double">PODWÓJ</button>` : ''}${this.canSplit(cur) ? `<button class="btn" id="bj-split">SPLIT${b.hands.length > 1 ? ' (' + (b.hands.length + 1) + ')' : ''}</button>` : ''}`}</div></div>`;
     if (done) { $('#bj-again').onclick = () => { if (this.chips() >= this.bjBet) this.bjDeal(); else { this.bj = { phase: 'bet', dealer: [], hands: [], msg: 'Brak żetonów na tę stawkę' }; this.renderBlackjack(); } }; $('#bj-new').onclick = () => { this.bj = null; this.renderBlackjack(); }; return; }
     if (b.dealing) return;
     if (b.phase === 'insure') { $('#bj-ins-yes').onclick = () => this.bjInsure(true); $('#bj-ins-no').onclick = () => this.bjInsure(false); return; }
@@ -1951,11 +1951,13 @@ const CASINO = {
   async bjHit() { const b = this.bj, h = b.hands[b.cur]; if (b.dealing) return; h.cards.push(this.draw()); this.flip(); this.renderBlackjack(); if (this.val(h.cards) > 21) { h.result = 'FURA'; b.dealing = true; await this.wait(500); b.dealing = false; this.bjNext(); } else if (this.val(h.cards) === 21) { b.dealing = true; await this.wait(400); b.dealing = false; this.bjNext(); } },
   bjStand() { if (this.bj.dealing) return; this.bjNext(); },
   async bjDouble() { const b = this.bj, h = b.hands[b.cur]; if (b.dealing || this.chips() < h.bet) return; this.pay(-h.bet); h.bet *= 2; h.cards.push(this.draw()); this.flip(); if (this.val(h.cards) > 21) h.result = 'FURA'; b.dealing = true; this.renderBlackjack(); await this.wait(500); b.dealing = false; this.bjNext(); },
+  // split można powtarzać do 4 rąk (asy tylko raz: dostają po jednej karcie i stoją)
+  canSplit(h) { const b = this.bj; return h && h.cards.length === 2 && b.hands.length < 4 && this.rank(h.cards[0]) === this.rank(h.cards[1]) && this.chips() >= h.bet; },
   async bjSplit() {
-    const b = this.bj, h = b.hands[0]; if (b.dealing || this.chips() < h.bet || b.hands.length !== 1 || h.cards.length !== 2) return;
-    this.pay(-h.bet); const c2 = h.cards.pop(); b.hands.push({ cards: [c2], bet: h.bet, result: null }); b.dealing = true; this.renderBlackjack(); await this.wait(300);
+    const b = this.bj, h = b.hands[b.cur]; if (b.dealing || !this.canSplit(h)) return;
+    this.pay(-h.bet); const c2 = h.cards.pop(); const nh = { cards: [c2], bet: h.bet, result: null }; b.hands.splice(b.cur + 1, 0, nh); b.dealing = true; this.renderBlackjack(); await this.wait(300);
     h.cards.push(this.draw()); this.flip(); this.renderBlackjack(); await this.wait(350);
-    b.hands[1].cards.push(this.draw()); this.flip(); b.dealing = false;
+    nh.cards.push(this.draw()); this.flip(); b.dealing = false;
     // rozdzielone asy: po jednej karcie na rękę, bez dobierania (standardowa zasada)
     if (c2.r === 'A') { b.msg = 'Asy rozdzielone: po jednej karcie, bez dobierania.'; this.renderBlackjack(); await this.wait(700); b.cur = b.hands.length; this.bjFinish(); return; }
     this.renderBlackjack();

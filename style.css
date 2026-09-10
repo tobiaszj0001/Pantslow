@@ -491,6 +491,11 @@ kbd {
 .hand.active .cards { outline: 3px solid var(--gold); outline-offset: 6px; border-radius: 10px; }
 .bj-ctrl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .bj-msg { font-family: var(--font-display); font-size: 1.8rem; letter-spacing: 0.05em; color: var(--gold); text-align: center; min-height: 1.2em; }
+/* trzy lub cztery ręce po splitach: siatka, żeby wszystko było widać */
+.bj.many { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1rem; justify-items: center; align-items: start; }
+.bj.many > * { grid-column: 1 / -1; }
+.bj.many > .hand:not(.dealer) { grid-column: auto; }
+.bj.many .card-p { width: 46px; height: 66px; font-size: 0.75rem; } .bj.many .cards { min-height: 66px; gap: 4px; } .bj.many .hand-label { font-size: 0.85rem; }
 .bj-ins { background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.45); border-radius: 12px; padding: 6px 14px; font-size: 0.9rem; text-align: center; max-width: 520px; }
 .bj-ins b { color: var(--gold); }
 .bj-msg.lose { color: #ff5c5c; }
@@ -855,6 +860,7 @@ body.tut-open .toasts { top: auto; bottom: max(10px, env(safe-area-inset-bottom)
   .pk-hint { font-size: 0.7rem; padding: 1px 8px; }
   #pk-ctrl { padding: 4px 6px; bottom: -0.4rem; margin: 0 -0.4rem -0.4rem; width: calc(100% + 0.8rem); } #pk-ctrl .btn { font-size: 0.8rem; padding: 0.35em 0.7em; }
   /* szybkie gry pionowo */
+  .bj.many { gap: 0.3rem 0.5rem; } .bj.many .card-p { width: 36px; height: 52px; font-size: 0.65rem; } .bj.many .cards { min-height: 52px; gap: 3px; } .bj.many .hand-label { font-size: 0.72rem; }
   .quick-card { padding: 0.45rem 0.5rem; gap: 4px; } .quick-card h3 { font-size: 0.95rem; }
   .dice { font-size: 2.1rem; } .quick .bj-msg { font-size: 0.85rem !important; min-height: 0; }
   .quick .card-p { width: 40px; height: 56px; } .quick .cards { min-height: 56px; }
@@ -895,6 +901,10 @@ body.tut-open .toasts { top: auto; bottom: max(10px, env(safe-area-inset-bottom)
   .bj { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.5rem; align-items: start; justify-items: center; align-content: space-evenly; }
   .bj > * { grid-column: 1 / -1; }
   .bj-ins { font-size: 0.75rem; padding: 3px 10px; }
+  .bj.many { grid-template-columns: repeat(3, 1fr); gap: 0.2rem 0.4rem; }
+  .bj.many > .hand { grid-column: auto; }
+  .bj.many .card-p { width: 32px; height: 46px; font-size: 0.58rem; padding: 1px 2px; } .bj.many .card-p .s { font-size: 0.8rem; } .bj.many .cards { min-height: 46px; gap: 3px; } .bj.many .hand-label { font-size: 0.66rem; margin-bottom: 1px; }
+  .bj.many .hand.active .cards { outline-width: 2px; outline-offset: 2px; }
   .bj > .hand { grid-column: auto; }
   .card-p { width: 42px; height: 60px; font-size: 0.7rem; padding: 2px 3px; } .card-p .s { font-size: 1.05rem; }
   .cards { min-height: 60px; gap: 5px; }

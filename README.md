@@ -86,7 +86,7 @@ Co kilkanaście sekund coś się dzieje: spada przedmiot na spadochronie (pizza,
 ## Kasyno u Gazdziola
 
 Grasz swoimi żetonami. Ruletka europejska z pełnym stołem (numer 35:1, tuziny i kolumny 2:1, kolor, parzyste i połówki 1:1),
-blackjack (krupier stoi na 17, blackjack 3:2, podwojenie (także po splicie), split par (raz, rozdzielone asy dostają po jednej karcie, 21 po splicie płaci 1:1), ubezpieczenie do połowy stawki płatne 2:1, gdy krupier pokazuje asa). Krupierem jest Gazdziol i komentuje.
+blackjack (krupier stoi na 17, blackjack 3:2, podwojenie (także po splicie), split par do czterech rąk (rozdzielone asy tylko raz, dostają po jednej karcie; 21 po splicie płaci 1:1), ubezpieczenie do połowy stawki płatne 2:1, gdy krupier pokazuje asa). Krupierem jest Gazdziol i komentuje.
 Przegrane żetony liczą się w „do odkucia”: możesz wyzwać krupiera na pojedynek w ringu. Wygrasz, odzyskujesz wszystko.
 Przegrasz, licznik się zeruje.
 
