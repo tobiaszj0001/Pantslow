@@ -22,7 +22,7 @@ const ROSTER = [
   { id: 'watol',      name: 'Watol Wszechwładny', title: 'Wszechwładny',  glove: '#9b5cff', speed: 1.00, power: 1.50, legendary: true, taunt: 'Wszechwładza nie pyta o zgodę.' },
 ];
 
-const VERSION = 'v21';
+const VERSION = 'v22';
 const BASE_HP = 100;
 const METER_MAX = 100;
 
@@ -1951,8 +1951,21 @@ const CASINO = {
   async bjHit() { const b = this.bj, h = b.hands[b.cur]; if (b.dealing) return; h.cards.push(this.draw()); this.flip(); this.renderBlackjack(); if (this.val(h.cards) > 21) { h.result = 'FURA'; b.dealing = true; await this.wait(500); b.dealing = false; this.bjNext(); } else if (this.val(h.cards) === 21) { b.dealing = true; await this.wait(400); b.dealing = false; this.bjNext(); } },
   bjStand() { if (this.bj.dealing) return; this.bjNext(); },
   async bjDouble() { const b = this.bj, h = b.hands[b.cur]; if (b.dealing || this.chips() < h.bet) return; this.pay(-h.bet); h.bet *= 2; h.cards.push(this.draw()); this.flip(); if (this.val(h.cards) > 21) h.result = 'FURA'; b.dealing = true; this.renderBlackjack(); await this.wait(500); b.dealing = false; this.bjNext(); },
-  async bjSplit() { const b = this.bj, h = b.hands[0]; if (b.dealing || this.chips() < h.bet) return; this.pay(-h.bet); const c2 = h.cards.pop(); b.hands.push({ cards: [c2], bet: h.bet, result: null }); b.dealing = true; this.renderBlackjack(); await this.wait(300); h.cards.push(this.draw()); this.flip(); this.renderBlackjack(); await this.wait(350); b.hands[1].cards.push(this.draw()); this.flip(); b.dealing = false; this.renderBlackjack(); },
-  bjNext() { const b = this.bj; b.cur++; if (b.cur >= b.hands.length) this.bjFinish(); else this.renderBlackjack(); },
+  async bjSplit() {
+    const b = this.bj, h = b.hands[0]; if (b.dealing || this.chips() < h.bet || b.hands.length !== 1 || h.cards.length !== 2) return;
+    this.pay(-h.bet); const c2 = h.cards.pop(); b.hands.push({ cards: [c2], bet: h.bet, result: null }); b.dealing = true; this.renderBlackjack(); await this.wait(300);
+    h.cards.push(this.draw()); this.flip(); this.renderBlackjack(); await this.wait(350);
+    b.hands[1].cards.push(this.draw()); this.flip(); b.dealing = false;
+    // rozdzielone asy: po jednej karcie na rękę, bez dobierania (standardowa zasada)
+    if (c2.r === 'A') { b.msg = 'Asy rozdzielone: po jednej karcie, bez dobierania.'; this.renderBlackjack(); await this.wait(700); b.cur = b.hands.length; this.bjFinish(); return; }
+    this.renderBlackjack();
+    if (this.val(h.cards) === 21) { b.dealing = true; await this.wait(400); b.dealing = false; this.bjNext(); }
+  },
+  bjNext() {
+    const b = this.bj; b.cur++;
+    while (b.cur < b.hands.length && this.val(b.hands[b.cur].cards) === 21) b.cur++; // 21 z dwóch kart po splicie stoi automatycznie
+    if (b.cur >= b.hands.length) this.bjFinish(); else this.renderBlackjack();
+  },
   async bjFinish() {
     const b = this.bj; b.dealing = true;
     const anyLive = b.hands.some((h) => h.result !== 'FURA');
@@ -1978,7 +1991,7 @@ const CASINO = {
     b.phase = 'done'; this.track(net, wagered);
     b.msgLose = net < 0;
     const netTxt = net > 0 ? `+${Math.round(net)} żetonów` : net < 0 ? `-${Math.round(-net)} żetonów` : 'na zero';
-    b.msg = b.insurance && dbj ? `Krupier ma blackjacka. Ubezpieczenie płaci ${b.insurance * 2}, wychodzisz ${netTxt}` : (net === 0 ? 'Remis, stawka wraca' : netTxt) + insTxt;
+    b.msg = b.insurance && dbj ? `Krupier ma blackjacka. Ubezpieczenie płaci ${b.insurance * 2}, wychodzisz ${netTxt}` : (net === 0 ? (b.hands.length > 1 ? 'Na zero: ' + parts.join(' / ').toLowerCase() : 'Remis, stawka wraca') : netTxt) + insTxt;
     if (b.hands.some((h) => h.result === 'BLACKJACK!')) { this.say('bj'); SFX.cheer(); } else if (net > 0) { this.say('win'); SFX.bell(); } else if (net < 0) { this.say('lose'); SFX.hurt(); }
     this.checkTrophies(); this.renderBlackjack();
   },
