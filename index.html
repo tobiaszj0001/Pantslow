@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b14" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Only Pantslow Gang: Turniej</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Rubik:wght@400;600;800&display=swap" rel="stylesheet" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <link rel="stylesheet" href="style.css?v=20" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== TYTUŁ ===== -->
+  <section id="s-title" class="screen active">
+    <div class="title-bg"></div>
+    <div class="title-inner">
+      <div class="logo">
+        <span class="logo-top">ONLY PANTSLOW</span>
+        <span class="logo-main">GANG</span>
+        <span class="logo-sub">TURNIEJ O KORONĘ</span>
+      </div>
+      <div id="title-faces" class="title-faces"></div>
+      <div id="profile" class="profile"></div>
+      <div class="menu">
+        <button class="btn btn-primary" data-mode="campaign">KAMPANIA</button>
+        <button class="btn" data-mode="survival">PRZETRWANIE</button>
+        <button class="btn" data-mode="quick">⚡ SZYBKI MECZ</button>
+        <button class="btn" data-mode="versus" id="btn-versus">2 GRACZY</button>
+        <button class="btn btn-ghost" id="btn-trophies">🏆 PUCHARKI</button>
+      </div>
+      <div class="menu">
+        <button class="btn btn-shop" id="btn-shop">🪙 SKLEP <span id="chips-title"></span></button>
+        <button class="btn btn-shop" id="btn-wardrobe">👕 SZATNIA</button>
+        <button class="btn btn-casino" id="btn-casino">🎰 KASYNO</button>
+        <button class="btn btn-boss" id="btn-boss">👹 BOSS TYGODNIA</button>
+        <button class="btn" id="btn-tourney">🏟️ TURNIEJ</button>
+        <button class="btn" id="btn-online">☁️ RANKING ONLINE</button>
+      </div>
+      <div class="menu menu-small">
+        <button class="btn btn-ghost btn-sm" id="btn-tutorial">📖 SAMOUCZEK</button>
+        <button class="btn btn-ghost btn-sm" id="btn-help">STEROWANIE</button>
+        <button class="btn btn-ghost btn-sm" id="btn-fs">PEŁNY EKRAN</button>
+        <button class="btn btn-ghost btn-sm" id="btn-sound">🔊 DŹWIĘK: WŁ</button>
+      </div>
+      <div id="daily" class="daily"></div>
+      <div id="hall" class="hall"></div>
+    </div>
+    <div id="ver" class="ver"></div>
+  </section>
+
+  <!-- ===== WYBÓR POSTACI ===== -->
+  <section id="s-select" class="screen">
+    <header class="select-head">
+      <button class="btn btn-ghost btn-sm" id="btn-back">← Wróć</button>
+      <h2 id="select-title">Wybierz wojownika</h2>
+      <div class="spacer"></div>
+    </header>
+    <div class="select-body">
+      <div id="grid" class="grid"></div>
+      <aside id="spotlight" class="spotlight">
+        <div class="spot-empty">Kliknij postać, żeby zobaczyć ją z bliska</div>
+        <div class="spot-card" hidden>
+          <div class="spot-badge" id="spot-badge">★ LEGENDA ★</div>
+          <div class="spot-head"><img id="spot-img" alt="" /></div>
+          <div class="spot-name" id="spot-name"></div>
+          <div class="spot-title" id="spot-title"></div>
+          <div class="spot-taunt" id="spot-taunt"></div>
+          <div class="spot-stats" id="spot-stats"></div>
+          <div class="spot-special" id="spot-special"></div>
+          <div class="spot-mastery" id="spot-mastery"></div>
+        </div>
+      </aside>
+    </div>
+    <footer class="select-foot">
+      <div id="sel-info" class="sel-info">Kliknij postać</div>
+      <button class="btn btn-primary btn-lg" id="btn-fight" disabled>WALCZ!</button>
+    </footer>
+  </section>
+
+  <!-- ===== GRA ===== -->
+  <section id="s-game" class="screen">
+    <canvas id="c" width="960" height="540"></canvas>
+    <button id="btn-pause" class="pause-btn" aria-label="Pauza">❚❚</button>
+
+    <div id="touch" class="touch" hidden>
+      <div class="pad pad-left">
+        <button class="tbtn tbtn-jump" data-act="jump">▲<small>SKOK</small></button>
+        <div class="pad-row">
+          <button class="tbtn" data-act="left">◀</button>
+          <button class="tbtn" data-act="right">▶</button>
+        </div>
+        <button class="tbtn tbtn-dodge" data-act="dodge">▼<small>UNIK</small></button>
+      </div>
+      <button class="tbtn tbtn-special" id="tbtn-special" data-act="special">MOC</button>
+      <div class="pad pad-right">
+        <button class="tbtn tbtn-block" data-act="block">BLOK</button>
+        <button class="tbtn tbtn-heavy" data-act="heavy">MOCNY</button>
+        <button class="tbtn tbtn-punch" data-act="punch">CIOS</button>
+      </div>
+    </div>
+
+    <div id="pause" class="overlay" hidden>
+      <div class="overlay-box">
+        <h2>PAUZA</h2>
+        <button class="btn btn-primary" id="btn-resume">Graj dalej</button>
+        <button class="btn btn-ghost" id="btn-quit">Wyjdź do menu</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== WYNIK WALKI ===== -->
+  <section id="s-result" class="screen">
+    <div class="result-box">
+      <div id="result-kicker" class="kicker"></div>
+      <h2 id="result-title"></h2>
+      <div id="result-faces" class="result-faces"></div>
+      <p id="result-text"></p>
+      <div id="result-progress" class="progress"></div>
+      <div id="result-xp" class="xpbox" hidden></div>
+      <div id="result-trophies" class="new-trophies"></div>
+      <div class="menu" id="result-replay-menu">
+        <button class="btn btn-sm" id="btn-replay" hidden>📹 UDOSTĘPNIJ POWTÓRKĘ K.O.</button>
+      </div>
+      <div class="menu" id="result-actions">
+        <button class="btn btn-primary" id="btn-next"></button>
+        <button class="btn btn-ghost" id="btn-result-menu">Menu</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MISTRZ ===== -->
+  <section id="s-champion" class="screen">
+    <div id="confetti" class="confetti"></div>
+    <div class="champion-box">
+      <div class="kicker">NOWY WŁADCA</div>
+      <div class="champ-head">
+        <span class="crown">👑</span>
+        <img id="champ-img" alt="" />
+      </div>
+      <h1 id="champ-name"></h1>
+      <div class="champ-title">KRÓL ONLY PANTSLOW GANG</div>
+      <p id="champ-text"></p>
+      <div class="menu">
+        <button class="btn btn-primary" id="btn-champ-menu">Do menu</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PUCHARKI ===== -->
+  <section id="s-trophies" class="screen">
+    <header class="select-head">
+      <button class="btn btn-ghost btn-sm" id="btn-trophies-back">← Wróć</button>
+      <h2>🏆 Pucharki i statystyki</h2>
+      <div class="spacer"></div>
+    </header>
+    <div class="trophies-body">
+      <div id="stats-box" class="stats-box"></div>
+      <div id="boss-badges" class="boss-badges"></div>
+      <div id="trophy-grid" class="trophy-grid"></div>
+    </div>
+  </section>
+
+  <!-- ===== KASYNO ===== -->
+  <section id="s-casino" class="screen">
+    <header class="select-head">
+      <button class="btn btn-ghost btn-sm" id="btn-casino-back">← Wróć</button>
+      <h2>🎰 Kasyno u Gazdziola</h2>
+      <div class="chips-big" id="chips-casino"></div>
+    </header>
+    <div class="casino-body">
+      <aside class="dealer">
+        <div class="dealer-head"><img id="dealer-img" alt="Gazdziol" /><span class="dealer-hat">🎩</span></div>
+        <div class="dealer-name">Gazdziol <small>krupier</small></div>
+        <div class="bubble" id="dealer-say">Siadaj. Żetony na stół.</div>
+        <div class="jackpot" id="jackpot-box"></div>
+        <button class="btn btn-sm btn-vip" id="btn-vip" hidden>👑 VIP</button>
+        <div id="debt-box" class="duel-box debt" hidden></div>
+        <div class="casino-stats" id="casino-stats"></div>
+        <div id="duel-box" class="duel-box" hidden></div>
+      </aside>
+      <div class="casino-main">
+        <div class="tabs" id="casino-tabs">
+          <button class="tab on" data-ctab="roulette"><i>🎡</i><span>Ruletka</span></button>
+          <button class="tab" data-ctab="blackjack"><i>🃏</i><span>Blackjack</span></button>
+          <button class="tab" data-ctab="slots"><i>🎰</i><span>Bandyta</span></button>
+          <button class="tab" data-ctab="poker"><i>♠️</i><span>Poker</span></button>
+          <button class="tab" data-ctab="race"><i>🏁</i><span>Wyścigi</span></button>
+          <button class="tab" data-ctab="quick"><i>🎲</i><span>Szybkie</span></button>
+        </div>
+        <div id="casino-game" class="casino-game"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== RANKING ONLINE ===== -->
+  <section id="s-online" class="screen">
+    <header class="select-head">
+      <button class="btn btn-ghost btn-sm" id="btn-online-back">← Wróć</button>
+      <h2>☁️ Ranking ekipy</h2>
+      <div class="spacer"></div>
+    </header>
+    <div id="online-body" class="tourney-body"></div>
+  </section>
+
+  <div id="debt-modal" class="overlay" hidden>
+    <div class="overlay-box">
+      <h2 style="color:#ffb020">💸 WINDYKACJA</h2>
+      <p id="debt-modal-text" style="margin:0;font-size:1rem;line-height:1.5"></p>
+      <div class="menu"><button class="btn btn-primary" id="debt-fight">🥊 WALCZĘ Z WATOLEM</button><button class="btn" id="debt-pay">SPŁACAM</button></div>
+    </div>
+  </div>
+
+  <div id="replay-modal" class="overlay" hidden>
+    <div class="overlay-box">
+      <h2>POWTÓRKA</h2>
+      <video id="replay-video" controls autoplay loop playsinline style="max-width:min(90vw,720px);border-radius:12px"></video>
+      <div class="menu"><a class="btn btn-primary" id="replay-dl" href="#">POBIERZ</a><button class="btn btn-ghost" id="replay-close">Zamknij</button></div>
+    </div>
+  </div>
+
+  <!-- ===== TURNIEJ ===== -->
+  <section id="s-tourney" class="screen">
+    <header class="select-head">
+      <button class="btn btn-ghost btn-sm" id="btn-tourney-back">← Wróć</button>
+      <h2>🏟️ Turniej ekipy</h2>
+      <div class="spacer"></div>
+    </header>
+    <div id="tourney-body" class="tourney-body"></div>
+  </section>
+
+  <!-- ===== SKLEP ===== -->
+  <section id="s-shop" class="screen">
+    <header class="select-head">
+      <button class="btn btn-ghost btn-sm" id="btn-shop-back">← Wróć</button>
+      <h2>🪙 Sklep</h2>
+      <div class="chips-big" id="chips-shop"></div>
+    </header>
+    <div class="shop-body">
+      <div class="shop-section">
+        <h3>Skrzynki</h3>
+        <div class="shop-row" id="shop-crates"></div>
+      </div>
+      <div class="shop-section">
+        <h3>Oferta dnia <small>zmienia się o północy</small></h3>
+        <div class="shop-row" id="shop-daily"></div>
+      </div>
+      <div class="shop-section">
+        <h3>Tajny kod</h3>
+        <div class="code-row"><input id="code-input" type="text" placeholder="wpisz kod" autocomplete="off" maxlength="24" /><button class="btn btn-sm btn-primary" id="btn-code">UŻYJ</button></div>
+        <div id="code-msg" class="code-msg"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SZATNIA ===== -->
+  <section id="s-wardrobe" class="screen">
+    <header class="select-head">
+      <button class="btn btn-ghost btn-sm" id="btn-wardrobe-back">← Wróć</button>
+      <h2>👕 Szatnia</h2>
+      <div class="chips-big" id="chips-wardrobe"></div>
+    </header>
+    <div class="wardrobe-body">
+      <div class="wardrobe-preview">
+        <canvas id="preview-canvas" width="300" height="340"></canvas>
+        <div class="preview-pick" id="preview-pick"></div>
+      </div>
+      <div class="wardrobe-main">
+        <div class="tabs" id="wardrobe-tabs"></div>
+        <div class="item-grid" id="item-grid"></div>
+        <div class="upg-box" id="upg-box"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SKRZYNKA ===== -->
+  <div id="crate" class="overlay" hidden>
+    <div class="crate-box">
+      <div class="crate-stage" id="crate-stage"><div class="crate-icon" id="crate-icon">📦</div></div>
+      <div class="crate-result" id="crate-result" hidden>
+        <div class="rarity" id="crate-rarity"></div>
+        <div class="item-big" id="crate-item"></div>
+        <div class="item-name" id="crate-name"></div>
+        <div class="item-type" id="crate-type"></div>
+      </div>
+      <div class="menu" id="crate-actions"></div>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+
+  <!-- ===== STEROWANIE ===== -->
+  <div id="help" class="overlay" hidden>
+    <div class="overlay-box help-box">
+      <h2>STEROWANIE</h2>
+      <div class="help-cols">
+        <div>
+          <h3>Solo / Gracz 1</h3>
+          <table>
+            <tr><td>Ruch</td><td><kbd>A</kbd> <kbd>D</kbd> lub <kbd>←</kbd> <kbd>→</kbd></td></tr>
+            <tr><td>Skok</td><td><kbd>W</kbd> lub <kbd>↑</kbd></td></tr>
+            <tr><td>Unik</td><td><kbd>S</kbd> lub <kbd>↓</kbd></td></tr>
+            <tr><td>Cios</td><td><kbd>Spacja</kbd> lub <kbd>F</kbd></td></tr>
+            <tr><td>Mocny cios</td><td><kbd>G</kbd></td></tr>
+            <tr><td>Blok</td><td><kbd>Shift</kbd> lub <kbd>H</kbd></td></tr>
+            <tr><td>Supermoc</td><td><kbd>E</kbd> lub <kbd>Q</kbd> (solo też <kbd>Enter</kbd>)</td></tr>
+          </table>
+        </div>
+        <div>
+          <h3>Gracz 2 (tryb 2 graczy)</h3>
+          <table>
+            <tr><td>Ruch</td><td><kbd>←</kbd> <kbd>→</kbd></td></tr>
+            <tr><td>Skok</td><td><kbd>↑</kbd></td></tr>
+            <tr><td>Unik</td><td><kbd>↓</kbd></td></tr>
+            <tr><td>Cios</td><td><kbd>K</kbd></td></tr>
+            <tr><td>Mocny cios</td><td><kbd>L</kbd></td></tr>
+            <tr><td>Blok</td><td><kbd>;</kbd> lub prawy <kbd>Shift</kbd></td></tr>
+            <tr><td>Supermoc</td><td><kbd>O</kbd> lub <kbd>I</kbd></td></tr>
+          </table>
+        </div>
+      </div>
+      <p class="help-tips">
+        Na telefonie masz przyciski na ekranie. Blok zmniejsza obrażenia do 15%, ale mocny cios go przełamuje.
+        Unik daje chwilę nietykalności. Każde trafienie z rzędu podbija mnożnik combo (do 2x). Obrywasz, combo znika.
+        <br /><br /><b>Supermoc:</b> pasek MOCY pod paskiem HP ładuje się od zadawania i przyjmowania ciosów. Gdy jest pełny, wciśnij klawisz supermocy (na telefonie przycisk MOC). Każda postać ma inną, opis widać przy wyborze postaci.
+        <br /><br /><b>Nagrody:</b> za każdą walkę dostajesz XP, awansujesz na poziomy i zdobywasz pucharki. Seria zwycięstw daje bonus, a wyzwanie dnia 300 XP.
+        <br /><br />Pauza: <kbd>Esc</kbd> lub <kbd>P</kbd>.
+      </p>
+      <button class="btn btn-primary" id="btn-help-close">Jasne</button>
+    </div>
+  </div>
+
+  <!-- ===== SAMOUCZEK ===== -->
+  <div id="tutorial" class="overlay" hidden>
+    <div class="tut-box">
+      <header class="tut-head">
+        <div class="tut-icon" id="tut-icon"></div>
+        <div class="tut-titles"><div class="tut-step" id="tut-step"></div><h2 id="tut-title"></h2></div>
+        <button class="btn btn-ghost btn-sm tut-close" id="tut-skip" aria-label="Zamknij">✕</button>
+      </header>
+      <div class="tut-dots" id="tut-dots"></div>
+      <div class="tut-body" id="tut-body"></div>
+      <footer class="tut-nav">
+        <button class="btn btn-ghost" id="tut-prev">← Wstecz</button>
+        <span class="tut-swipe">przesuń palcem lub strzałki ← →</span>
+        <button class="btn btn-primary" id="tut-next">Dalej →</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="ios-help" class="overlay" hidden>
+    <div class="overlay-box help-box">
+      <h2>PEŁNY EKRAN NA TELEFONIE</h2>
+      <p class="help-tips" style="font-size:1rem">
+        Safari na iPhonie nie pozwala stronie przejść na pełny ekran. Jest na to sposób:<br /><br />
+        1. Kliknij w Safari przycisk <b>Udostępnij</b> (kwadrat ze strzałką w górę, na dole ekranu).<br />
+        2. Wybierz <b>Do ekranu początkowego</b> i zatwierdź <b>Dodaj</b>.<br />
+        3. Zamknij Safari i odpal grę z nowej ikony na pulpicie. Wtedy działa na całym ekranie, bez paska adresu.<br /><br />
+        Na Androidzie w Chrome: menu ⋮ → <b>Dodaj do ekranu głównego</b>, albo po prostu kliknij „Pełny ekran” w menu gry.
+      </p>
+      <button class="btn btn-primary" id="btn-ios-close">Jasne</button>
+    </div>
+  </div>
+
+  <div id="rotate-hint">📱↻ Obróć telefon poziomo, będzie wygodniej</div>
+</div>
+<script>
+  // Gra przeprowadziła się pod ładniejszy adres: stary link /claude/ przekierowuje, gdy tylko nowy jest online.
+  (function () {
+    if (!/\/claude\//.test(location.pathname)) return;
+    var NEW = 'https://tobiaszj0001.github.io/pantslow/';
+    fetch(NEW + 'manifest.json', { method: 'HEAD', cache: 'no-store' }).then(function (r) { if (r.ok) location.replace(NEW + location.search + location.hash); }).catch(function () {});
+  })();
+</script>
+<script src="online-config.js"></script>
+<script src="game.js?v=20"></script>
+</body>
+</html>
