@@ -80,7 +80,7 @@ Co kilkanaście sekund coś się dzieje: spada przedmiot na spadochronie (pizza,
 
 - **Boss tygodnia**: co poniedziałek inna postać z modyfikatorem (Gigant, Błyskawica, Pancerny, Wampir, Mocarz, Księżycowy, Chaos). Pierwsze zwycięstwo w tygodniu daje 500 żetonów, Złotą Skrzynkę i odznakę z datą w Pucharkach.
 - **Turniej**: 4 lub 8 osób na jednym urządzeniu, drabinka. Na klawiaturze pojedynki 1 na 1, na telefonie „na punkty” (każdy gra z AI postacią rywala, podajecie telefon z ręki do ręki).
-- **Powtórka K.O.**: po nokaucie ostatnie 2,5 s w zwolnionym tempie ze zbliżeniem. Gra nagrywa ją jako wideo, na ekranie wyniku jest „Udostępnij powtórkę” (na telefonie otwiera udostępnianie, na komputerze podgląd i pobranie).
+- **Powtórka K.O.**: po nokaucie ostatnie 2,5 s w zwolnionym tempie ze zbliżeniem, z dźwiękami ciosów i głosami postaci odtwarzanymi w odpowiednich momentach. Gra nagrywa ją jako wideo z dźwiękiem, na ekranie wyniku jest „Udostępnij powtórkę” (na telefonie otwiera udostępnianie, na komputerze podgląd i pobranie).
 - **Krytyki** (8% ciosów, 1,6x, pęknięty ekran), **Pierwsza krew**, **PERFECT** za walkę bez obrażeń, nazwy combo od 5x.
 
 ## Kasyno u Gazdziola

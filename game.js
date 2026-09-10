@@ -22,7 +22,7 @@ const ROSTER = [
   { id: 'watol',      name: 'Watol Wszechwładny', title: 'Wszechwładny',  glove: '#9b5cff', speed: 1.00, power: 1.50, legendary: true, taunt: 'Wszechwładza nie pyta o zgodę.' },
 ];
 
-const VERSION = 'v25';
+const VERSION = 'v26';
 const BASE_HP = 100;
 const METER_MAX = 100;
 
@@ -237,12 +237,19 @@ const SFX = {
   ctx: null, muted: false,
   ensure() {
     if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.ctx = null; } }
+    if (this.ctx && !this.out) { this.out = this.ctx.createGain(); this.out.gain.value = 1; this.out.connect(this.ctx.destination); } // wspólne wyjście: głośniki + nagrywanie powtórki
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
     if (this.ctx && !this.unlocked) { // iPhone: pierwszy dźwięk musi wyjść z gestu użytkownika
       this.unlocked = true;
       try { const b = this.ctx.createBuffer(1, 1, 22050); const s = this.ctx.createBufferSource(); s.buffer = b; s.connect(this.ctx.destination); s.start(0); } catch (e) {}
       VOICES.preload();
     }
+  },
+  dest() { return this.out || this.ctx.destination; },
+  recStream() { // ścieżka audio do nagrania powtórki (to samo, co słychać w głośnikach)
+    if (!this.ctx || !this.out || !this.ctx.createMediaStreamDestination) return null;
+    if (!this.recDest) { try { this.recDest = this.ctx.createMediaStreamDestination(); this.out.connect(this.recDest); } catch (e) { return null; } }
+    return this.recDest.stream;
   },
   noise(dur, freq, q, vol, type = 'lowpass') {
     if (!this.ctx || this.muted) return; const c = this.ctx; const n = c.sampleRate * dur;
@@ -251,14 +258,14 @@ const SFX = {
     const src = c.createBufferSource(); src.buffer = buf;
     const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
     const g = c.createGain(); g.gain.value = vol;
-    src.connect(f); f.connect(g); g.connect(c.destination); src.start();
+    src.connect(f); f.connect(g); g.connect(this.dest()); src.start();
   },
   tone(freq, dur, vol, type = 'sine', slide = 1) {
     if (!this.ctx || this.muted) return; const c = this.ctx; const o = c.createOscillator(); const g = c.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, c.currentTime);
     o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * slide), c.currentTime + dur);
     g.gain.setValueAtTime(vol, c.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
-    o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + dur);
+    o.connect(g); g.connect(this.dest()); o.start(); o.stop(c.currentTime + dur);
   },
   punch(heavy) { this.noise(heavy ? 0.16 : 0.09, heavy ? 320 : 520, 1, heavy ? 0.9 : 0.6); this.tone(heavy ? 90 : 140, heavy ? 0.22 : 0.12, 0.5, 'sine', 0.4); },
   block() { this.noise(0.06, 2200, 2, 0.4, 'highpass'); this.tone(420, 0.08, 0.25, 'square', 0.7); },
@@ -303,7 +310,7 @@ const VOICES = { data: {}, muted: false, last: {}, buffers: {}, pending: {},
     if (SFX.ctx && buf) {
       try {
         const src = SFX.ctx.createBufferSource(); src.buffer = buf;
-        const g = SFX.ctx.createGain(); g.gain.value = vol; src.connect(g); g.connect(SFX.ctx.destination); src.start();
+        const g = SFX.ctx.createGain(); g.gain.value = vol; src.connect(g); g.connect(SFX.dest()); src.start();
         return true;
       } catch (e) {}
     }
@@ -312,6 +319,11 @@ const VOICES = { data: {}, muted: false, last: {}, buffers: {}, pending: {},
     return true;
   },
 };
+
+// Dziennik dźwięków walki: powtórka K.O. odtwarza je ponownie w zwolnionym tempie, a nagranie ma dźwięk
+const SFX_LOGGED = ['punch', 'block', 'whiff', 'jump', 'ko', 'bell', 'cheer', 'hurt'];
+for (const name of SFX_LOGGED) { const orig = SFX[name]; SFX[name] = function (...a) { try { const m = App.match; if (m && m.logSound) m.logSound(name, a); } catch (e) {} return orig.apply(this, a); }; }
+{ const origPlay = VOICES.play; VOICES.play = function (ch, ev, opts) { try { const m = App.match; if (m && m.logSound && (!opts || !opts.fromReplay)) m.logSound('voice', [ch, ev, opts]); } catch (e) {} return origPlay.call(this, ch, ev, opts); }; }
 
 // ============================================================
 //  Sterowanie
@@ -891,7 +903,7 @@ class Match {
     this.projectiles = []; this.zones = []; this.timers = []; this.flash = 0; this.announce = null;
     this.pickups = []; this.hazards = []; this.nextEvent = rand(7, 12); this.eventBanner = null; this.gravityMul = 1; this.crack = null; this.firstBlood = null; this.perfect = false;
     this.eventsOn = opts.events !== false;
-    this.hist = []; this.histT = 0; this.replay = null; this.recorder = null; this.recChunks = [];
+    this.hist = []; this.histT = 0; this.replay = null; this.recorder = null; this.recChunks = []; this.sfxLog = []; this.recClock = 0;
     if (opts.boss && opts.boss.gravity) this.gravityMul = opts.boss.gravity;
     if (opts.boss && opts.boss.chaos) this.nextEvent = 3;
     this.winner = null; this.ended = false;
@@ -970,8 +982,8 @@ class Match {
     if (fighting) { this.resolveHit(a, b); this.resolveHit(b, a); }
 
     if (this.phase === 'fight' || (this.phase === 'ko' && this.phaseT < 1.2)) {
-      this.histT += dtRaw;
-      if (this.histT >= 1 / 30) { this.histT = 0; this.hist.push(this.snapshot()); if (this.hist.length > 80) this.hist.shift(); }
+      this.histT += dtRaw; this.recClock += dtRaw;
+      if (this.histT >= 1 / 30) { this.histT = 0; const sn = this.snapshot(); sn.t = this.recClock; this.hist.push(sn); if (this.hist.length > 80) { this.hist.shift(); const t0 = this.hist[0].t; this.sfxLog = this.sfxLog.filter((e) => e.t >= t0 - 0.05); } }
     }
     if (this.phase === 'ko') {
       this.slow = this.phaseT < 0.9 ? 0.3 : 1;
@@ -980,6 +992,7 @@ class Match {
     }
     if (this.phase === 'replay') {
       this.replay.idx += dtRaw * 30 * 0.5; this.replay.t += dtRaw;
+      this.replaySounds();
       if (this.replay.idx >= this.hist.length - 1 || this.replay.skip) this.endReplay();
     }
     this.excite = Math.max(0, this.excite - dt * 0.5);
@@ -1066,6 +1079,17 @@ class Match {
     return dmg;
   }
   other(f) { return f === this.f[0] ? this.f[1] : this.f[0]; }
+  logSound(name, args) { if (this.phase === 'replay' || this.phase === 'intro') return; this.sfxLog.push({ t: this.recClock, name, args }); }
+  replaySounds() { // odtwarza dźwięki zapisane w dzienniku, gdy powtórka dojdzie do ich momentu
+    const r = this.replay; if (!r || !this.hist.length) return;
+    const i = Math.min(this.hist.length - 1, Math.floor(r.idx)); const base = this.hist[i].t || 0; const cur = base + (r.idx - i) / 30;
+    if (r.lastT === undefined) r.lastT = (this.hist[0].t || 0) - 0.001;
+    for (const e of this.sfxLog) {
+      if (e.t <= r.lastT || e.t > cur) continue;
+      try { if (e.name === 'voice') VOICES.play(e.args[0], e.args[1], Object.assign({}, e.args[2] || {}, { cooldown: 0, chance: 1, fromReplay: true })); else SFX[e.name].apply(SFX, e.args); } catch (err) {}
+    }
+    r.lastT = cur;
+  }
   snapshot() {
     const fs = this.f.map((f) => ({ x: f.x, y: f.y, vy: f.vy, facing: f.facing, state: f.state, stateT: f.stateT, stateDur: f.stateDur, animT: f.animT, hp: f.hp, ghost: f.ghost, hurtFlash: f.hurtFlash, st: Object.assign({}, f.st), weapon: f.weapon, scale: f.scale, bigHead: f.bigHead, isBoss: f.isBoss, cos: f.cos, ch: f.ch, upg: f.upg, meter: f.meter }));
     return { fs, particles: this.particles.map((p) => ({ x: p.x, y: p.y, r: p.r, col: p.col, emoji: p.emoji, rot: p.rot, life: p.life })), zones: this.zones.map((z) => Object.assign({}, z)), projectiles: this.projectiles.map((p) => Object.assign({}, p)), pickups: this.pickups.map((p) => Object.assign({}, p)), hazards: this.hazards.map((h) => Object.assign({}, h)), popups: this.popups.map((p) => Object.assign({}, p)) };
@@ -1075,8 +1099,10 @@ class Match {
     const last = this.hist[this.hist.length - 1]; this.replay.cx = (last.fs[0].x + last.fs[1].x) / 2; this.replay.cy = 330;
     try {
       const cv = $('#c'); if (window.MediaRecorder && cv.captureStream) {
-        const mime = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'].find((m) => MediaRecorder.isTypeSupported(m));
-        this.recChunks = []; this.recorder = new MediaRecorder(cv.captureStream(30), mime ? { mimeType: mime } : undefined);
+        const mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m));
+        const stream = cv.captureStream(30);
+        try { const au = SFX.muted ? null : SFX.recStream(); if (au) for (const tr of au.getAudioTracks()) stream.addTrack(tr); } catch (e) {} // dźwięk powtórki w nagraniu
+        this.recChunks = []; this.recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
         this.recorder.ondataavailable = (e) => { if (e.data && e.data.size) this.recChunks.push(e.data); };
         this.recorder.start(250);
       }
@@ -2927,7 +2953,7 @@ const App = {
   },
 };
 
-window.OPG = App; window.OPG_VOICES = VOICES; window.OPG_PICKUPS = PICKUPS; window.OPG_CASINO = CASINO;
+window.OPG = App; window.OPG_SFX = SFX; window.OPG_VOICES = VOICES; window.OPG_PICKUPS = PICKUPS; window.OPG_CASINO = CASINO;
 PROFILE.load();
 Promise.all([loadHeads(), VOICES.load()]).then(() => App.init());
 })();
