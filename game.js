@@ -22,7 +22,7 @@ const ROSTER = [
   { id: 'watol',      name: 'Watol Wszechwładny', title: 'Wszechwładny',  glove: '#9b5cff', speed: 1.00, power: 1.50, legendary: true, taunt: 'Wszechwładza nie pyta o zgodę.' },
 ];
 
-const VERSION = 'v24';
+const VERSION = 'v25';
 const BASE_HP = 100;
 const METER_MAX = 100;
 
@@ -1888,10 +1888,10 @@ const CASINO = {
     setTimeout(() => { this.renderRoulette(); $$('.cell').forEach((c) => c.classList.toggle('hit', c.dataset.bet === 'n' + result)); }, 300);
   },
   // ---------- BLACKJACK ----------
-  newDeck() { const d = []; for (let k = 0; k < 4; k++) for (const su of ['♠', '♥', '♦', '♣']) for (const r of ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']) d.push({ r, su }); return shuffle(d); },
+  newDeck(decks = 1) { const d = []; for (let k = 0; k < decks; k++) for (const su of ['♠', '♥', '♦', '♣']) for (const r of ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']) d.push({ r, su }); return shuffle(d); },
   val(hand) { let t = 0, aces = 0; for (const c of hand) { if (c.r === 'A') { aces++; t += 11; } else if (['J', 'Q', 'K'].includes(c.r)) t += 10; else t += +c.r; } while (t > 21 && aces) { t -= 10; aces--; } return t; },
   isBJ(h) { return h.length === 2 && this.val(h) === 21; },
-  draw() { if (!this.deck || this.deck.length < 20) this.deck = this.newDeck(); return this.deck.pop(); },
+  draw() { if (!this.deck || this.deck.length < 20) this.deck = this.newDeck(4); return this.deck.pop(); }, // blackjack: but z 4 talii
   renderBlackjack() {
     const g = $('#casino-game'); const b = this.bj;
     const card = (c, hidden) => hidden ? '<div class="card-p back"></div>' : `<div class="card-p ${['♥', '♦'].includes(c.su) ? 'red' : ''}"><div>${c.r}${c.su}</div><div class="s">${c.su}</div><div class="b">${c.r}${c.su}</div></div>`;
