@@ -22,7 +22,7 @@ const ROSTER = [
   { id: 'watol',      name: 'Watol Wszechwładny', title: 'Wszechwładny',  glove: '#9b5cff', speed: 1.00, power: 1.50, legendary: true, taunt: 'Wszechwładza nie pyta o zgodę.' },
 ];
 
-const VERSION = 'v20';
+const VERSION = 'v21';
 const BASE_HP = 100;
 const METER_MAX = 100;
 
@@ -1316,6 +1316,8 @@ const ONLINE = {
 const ROULETTE_WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 const ROULETTE_RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 const DEALER_SAY = {
+  insure: ['Ubezpieczenie? Dla mnie zawsze warto.', 'As na wierzchu. Boisz się?', 'Połowa stawki i śpisz spokojnie. Albo nie.'],
+  insure_lose: ['Nie mam. Ubezpieczenie dziękuje.', 'Spokojnie, to tylko połowa stawki.', 'Sprzedaję strach w dobrej cenie.'],
   loan: ['Pożyczka? Proszę bardzo. Watol lubi odwiedzać dłużników.', 'Sześćset za trzy dni. Zegar tyka.'],
   vip: ['Witamy w VIP roomie. Tu przegrywa się z klasą.', 'Wysokie stawki, wysokie loty. Albo upadki.'],
   hello: ['Siadaj. Żetony na stół.', 'Dom zawsze wygrywa. Ale spróbuj.', 'Elegancko cię ogram.', 'Garnitur mam z twoich przegranych.'],
@@ -1899,7 +1901,7 @@ const CASINO = {
         ${b ? b.hands.map((h, i) => `<div class="hand"><div class="hand-label">TY${b.hands.length > 1 ? ' ' + (i + 1) : ''}<b>${this.val(h.cards)}</b></div><div class="cards">${h.cards.map((c) => card(c)).join('')}</div></div>`).join('') : '<div class="hand"><div class="hand-label">TY</div><div class="cards"></div></div>'}
         <div>Stawka: <b style="color:var(--gold)">${this.bjBet}</b></div>${this.chipBar()}
         <div class="bj-ctrl"><button class="btn btn-sm btn-ghost" id="bj-minus">−</button><button class="btn btn-sm btn-ghost" id="bj-plus">+</button><button class="btn btn-primary" id="bj-deal" ${this.chips() < this.bjBet ? 'disabled' : ''}>🃏 ROZDAJ (${this.bjBet})</button></div>
-        <div class="t-hint">Blackjack płaci 3:2. Krupier dobiera do 16, stoi na 17. Podwojenie na dwóch kartach, split par.</div></div>`;
+        <div class="t-hint">Blackjack płaci 3:2. Krupier dobiera do 16, stoi na 17. Podwojenie na dwóch kartach, split par, ubezpieczenie gdy krupier pokazuje asa.</div></div>`;
       this.bindChips();
       $$('[data-chip]').forEach((x) => x.addEventListener('click', () => { this.bjBet = this.chip; this.renderBlackjack(); }));
       $('#bj-minus').onclick = () => { this.bjBet = Math.max(10, this.bjBet - this.chip); this.renderBlackjack(); };
@@ -1911,9 +1913,11 @@ const CASINO = {
     g.innerHTML = `<div class="bj"><div class="bj-msg ${b.msgLose ? 'lose' : ''}">${b.msg || ''}</div>
       <div class="hand"><div class="hand-label">KRUPIER${done || b.reveal ? `<b>${this.val(b.dealer)}</b>` : ''}</div><div class="cards">${b.dealer.map((c, i) => card(c, i === 1 && !b.reveal && !done)).join('')}</div></div>
       ${b.hands.map((h, i) => `<div class="hand ${!done && i === b.cur ? 'active' : ''}"><div class="hand-label">TY${b.hands.length > 1 ? ' ' + (i + 1) : ''} • ${h.bet}<b>${this.val(h.cards)}${h.result ? ' • ' + h.result : ''}</b></div><div class="cards">${h.cards.map((c) => card(c)).join('')}</div></div>`).join('')}
-      <div class="bj-ctrl">${done ? `<button class="btn btn-primary" id="bj-again">JESZCZE RAZ</button><button class="btn btn-ghost" id="bj-new">Zmień stawkę</button>` : b.dealing ? '<span class="t-hint">Krupier wykłada karty...</span>' : `<button class="btn btn-primary" id="bj-hit">DOBIERZ</button><button class="btn" id="bj-stand">STÓJ</button>${cur.cards.length === 2 && this.chips() >= cur.bet ? `<button class="btn" id="bj-double">PODWÓJ</button>` : ''}${cur.cards.length === 2 && b.hands.length === 1 && this.rank(cur.cards[0]) === this.rank(cur.cards[1]) && this.chips() >= cur.bet ? `<button class="btn" id="bj-split">SPLIT</button>` : ''}`}</div></div>`;
+      ${b.phase === 'insure' ? `<div class="bj-ins">Krupier ma asa. Ubezpieczenie kosztuje <b>${b.insCost}</b> i płaci <b>2:1</b>, jeśli krupier ma blackjacka.</div>` : ''}
+      <div class="bj-ctrl">${done ? `<button class="btn btn-primary" id="bj-again">JESZCZE RAZ</button><button class="btn btn-ghost" id="bj-new">Zmień stawkę</button>` : b.dealing ? '<span class="t-hint">Krupier wykłada karty...</span>' : b.phase === 'insure' ? `<button class="btn btn-primary" id="bj-ins-yes" ${this.chips() < b.insCost ? 'disabled' : ''}>🛡️ UBEZPIECZ (${b.insCost})</button><button class="btn" id="bj-ins-no">NIE, GRAM</button>` : `<button class="btn btn-primary" id="bj-hit">DOBIERZ</button><button class="btn" id="bj-stand">STÓJ</button>${cur.cards.length === 2 && this.chips() >= cur.bet ? `<button class="btn" id="bj-double">PODWÓJ</button>` : ''}${cur.cards.length === 2 && b.hands.length === 1 && this.rank(cur.cards[0]) === this.rank(cur.cards[1]) && this.chips() >= cur.bet ? `<button class="btn" id="bj-split">SPLIT</button>` : ''}`}</div></div>`;
     if (done) { $('#bj-again').onclick = () => { if (this.chips() >= this.bjBet) this.bjDeal(); else { this.bj = { phase: 'bet', dealer: [], hands: [], msg: 'Brak żetonów na tę stawkę' }; this.renderBlackjack(); } }; $('#bj-new').onclick = () => { this.bj = null; this.renderBlackjack(); }; return; }
     if (b.dealing) return;
+    if (b.phase === 'insure') { $('#bj-ins-yes').onclick = () => this.bjInsure(true); $('#bj-ins-no').onclick = () => this.bjInsure(false); return; }
     $('#bj-hit').onclick = () => this.bjHit(); $('#bj-stand').onclick = () => this.bjStand();
     const d = $('#bj-double'); if (d) d.onclick = () => this.bjDouble();
     const sp = $('#bj-split'); if (sp) sp.onclick = () => this.bjSplit();
@@ -1928,7 +1932,20 @@ const CASINO = {
     const b = this.bj;
     for (const who of ['p', 'd', 'p', 'd']) { (who === 'p' ? b.hands[0].cards : b.dealer).push(this.draw()); this.flip(); this.renderBlackjack(); await this.wait(380); }
     b.dealing = false;
-    if (this.isBJ(b.hands[0].cards) || this.isBJ(b.dealer)) { this.bjFinish(); return; }
+    if (this.isBJ(b.hands[0].cards)) { this.bjFinish(); return; }
+    if (b.dealer[0].r === 'A') { b.phase = 'insure'; b.insCost = Math.max(5, Math.ceil(bet / 2)); b.msg = 'Krupier pokazuje asa. Ubezpieczenie?'; this.say('insure'); this.renderBlackjack(); return; }
+    if (this.isBJ(b.dealer)) { this.bjFinish(); return; }
+    this.renderBlackjack();
+  },
+  // ubezpieczenie: zakład poboczny do połowy stawki, płaci 2:1 gdy krupier ma blackjacka; potem krupier zagląda pod kartę
+  async bjInsure(take) {
+    const b = this.bj; if (!b || b.phase !== 'insure' || b.dealing) return;
+    if (take) { if (this.chips() < b.insCost) return; this.pay(-b.insCost); b.insurance = b.insCost; }
+    b.phase = 'play'; b.dealing = true; b.msg = 'Krupier zagląda pod kartę…'; this.renderBlackjack(); await this.wait(900);
+    b.dealing = false;
+    if (this.isBJ(b.dealer)) { this.bjFinish(); return; }
+    b.msg = take ? `Krupier nie ma blackjacka. Ubezpieczenie (${b.insurance}) przepada, gramy dalej.` : 'Krupier nie ma blackjacka. Gramy dalej.';
+    if (take) { b.insLost = true; this.say('insure_lose'); }
     this.renderBlackjack();
   },
   async bjHit() { const b = this.bj, h = b.hands[b.cur]; if (b.dealing) return; h.cards.push(this.draw()); this.flip(); this.renderBlackjack(); if (this.val(h.cards) > 21) { h.result = 'FURA'; b.dealing = true; await this.wait(500); b.dealing = false; this.bjNext(); } else if (this.val(h.cards) === 21) { b.dealing = true; await this.wait(400); b.dealing = false; this.bjNext(); } },
@@ -1956,8 +1973,12 @@ const CASINO = {
       else { ret = 0; h.result = 'PRZEGRANA'; }
       net += ret - h.bet; if (ret) this.pay(ret); parts.push(h.result);
     }
-    b.phase = 'done'; this.track(net, b.hands.reduce((a, h) => a + h.bet, 0));
-    b.msgLose = net < 0; b.msg = net > 0 ? `+${Math.round(net)} żetonów` : net < 0 ? `-${Math.round(-net)} żetonów` : 'Remis, stawka wraca';
+    let wagered = b.hands.reduce((a, h) => a + h.bet, 0); let insTxt = '';
+    if (b.insurance) { wagered += b.insurance; if (dbj) { const ret = b.insurance * 3; this.pay(ret); net += ret - b.insurance; insTxt = ` • ubezpieczenie płaci ${b.insurance * 2}`; PROFILE.d.casinoInsWins = (PROFILE.d.casinoInsWins || 0) + 1; } else { net -= b.insurance; insTxt = ` • ubezpieczenie -${b.insurance}`; } }
+    b.phase = 'done'; this.track(net, wagered);
+    b.msgLose = net < 0;
+    const netTxt = net > 0 ? `+${Math.round(net)} żetonów` : net < 0 ? `-${Math.round(-net)} żetonów` : 'na zero';
+    b.msg = b.insurance && dbj ? `Krupier ma blackjacka. Ubezpieczenie płaci ${b.insurance * 2}, wychodzisz ${netTxt}` : (net === 0 ? 'Remis, stawka wraca' : netTxt) + insTxt;
     if (b.hands.some((h) => h.result === 'BLACKJACK!')) { this.say('bj'); SFX.cheer(); } else if (net > 0) { this.say('win'); SFX.bell(); } else if (net < 0) { this.say('lose'); SFX.hurt(); }
     this.checkTrophies(); this.renderBlackjack();
   },
@@ -2059,6 +2080,7 @@ const TROPHIES = [
   { id: 'upg3', icon: '⬆️', name: 'Maksymalny rozwój', desc: 'Rozwiń postać do 3. poziomu', check: (p) => Object.values(p.upgrades).some((v) => v >= 3) },
   { id: 'casino10', icon: '🎰', name: 'Hazardzista', desc: 'Zagraj 10 rund w kasynie', check: (p) => p.casinoRounds >= 10, prog: (p) => [p.casinoRounds, 10] },
   { id: 'casino_bj', icon: '🃏', name: 'Dwadzieścia jeden', desc: 'Trafić blackjacka', check: (p) => p.casinoBJ >= 1 },
+  { id: 'casino_ins', icon: '🛡️', name: 'Ubezpieczony', desc: 'Wygrać ubezpieczenie w blackjacku (krupier miał blackjacka)', check: (p) => (p.casinoInsWins || 0) >= 1 },
   { id: 'casino_35', icon: '🎡', name: 'Numer!', desc: 'Trafić pojedynczy numer w ruletce', check: (p) => p.casinoStraight >= 1 },
   { id: 'slots_jp', icon: '💰', name: 'Trzy Króle', desc: 'Trafić jackpot na jednorękim bandycie', check: (p) => p.slotsJackpots >= 1 },
   { id: 'race5', icon: '🏁', name: 'Bukmacher', desc: 'Wygraj 5 wyścigów ekipy', check: (p) => p.raceWins >= 5, prog: (p) => [p.raceWins, 5] },

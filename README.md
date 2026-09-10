@@ -86,7 +86,7 @@ Co kilkanaście sekund coś się dzieje: spada przedmiot na spadochronie (pizza,
 ## Kasyno u Gazdziola
 
 Grasz swoimi żetonami. Ruletka europejska z pełnym stołem (numer 35:1, tuziny i kolumny 2:1, kolor, parzyste i połówki 1:1),
-blackjack (krupier stoi na 17, blackjack 3:2, podwojenie, split par). Krupierem jest Gazdziol i komentuje.
+blackjack (krupier stoi na 17, blackjack 3:2, podwojenie, split par, ubezpieczenie do połowy stawki płatne 2:1, gdy krupier pokazuje asa). Krupierem jest Gazdziol i komentuje.
 Przegrane żetony liczą się w „do odkucia”: możesz wyzwać krupiera na pojedynek w ringu. Wygrasz, odzyskujesz wszystko.
 Przegrasz, licznik się zeruje.
 
@@ -95,7 +95,7 @@ Do tego: **jednoręki bandyta** z głowami ekipy (3x Król Pała = jackpot), **p
 **Jackpot progresywny** rośnie o 5% każdej przegranej, do wzięcia na pojedynczym numerze w ruletce albo trzech Królach na bandycie.
 **VIP room** odblokowuje się po 10 000 żetonów obrotu (złoty stół, żetony do 10K, Gazdziol w koronie).
 **Dług**: przy pustej kieszeni Gazdziol pożycza 500, oddajesz 600 w 3 dni. Po terminie przychodzi Watol windykator:
-wygrasz, dług znika; przegrasz, zabiera żetony, a jak ich brakuje, jeden przedmiot z szatni. Kasyno ma 11 pucharków,
+wygrasz, dług znika; przegrasz, zabiera żetony, a jak ich brakuje, jeden przedmiot z szatni. Kasyno ma 12 pucharków,
 a ranking online pokazuje bilans, rekord i jackpoty.
 
 Na telefonie kasyno ma własny układ bez przewijania: poziomo krupier w pasku u góry, zakładki jako pionowy pasek
@@ -110,7 +110,7 @@ Wymaga jednorazowego podłączenia darmowej bazy: instrukcja w `online/README.md
 ## Nagrody
 
 - XP za każdą walkę (K.O., zostałe HP, combo, supermoce, szybkość, legendy, seria zwycięstw), poziomy i rangi od Świeżaka do Boga Pięści.
-- 36 pucharków (osiągnięć) z paskami postępu, ekran „Pucharki” w menu ze statystykami i odznakami bossów.
+- 47 pucharków (osiągnięć) z paskami postępu, ekran „Pucharki” w menu ze statystykami i odznakami bossów.
 - Wyzwanie dnia: co dzień inna postać i warunek, 300 XP.
 - Gwiazdki mistrzostwa przy postaciach za wygrane (3, 10, 25) i korony za kampanie.
 - Wszystko zapisuje się w przeglądarce (localStorage), osobno na każdym urządzeniu.
