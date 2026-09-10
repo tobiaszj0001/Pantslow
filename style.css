@@ -494,8 +494,8 @@ kbd {
 /* trzy lub cztery ręce po splitach: siatka, żeby wszystko było widać */
 .bj.many { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1rem; justify-items: center; align-items: start; }
 .bj.many > * { grid-column: 1 / -1; }
-.bj.many > .hand:not(.dealer) { grid-column: auto; }
-.bj.many .card-p { width: 46px; height: 66px; font-size: 0.75rem; } .bj.many .cards { min-height: 66px; gap: 4px; } .bj.many .hand-label { font-size: 0.85rem; }
+.bj.many > .hand:not(.hand-dealer) { grid-column: auto; }
+.bj.many .card-p { width: 52px; height: 76px; font-size: 0.8rem; } .bj.many .cards { min-height: 76px; gap: 4px; } .bj.many .hand-label { font-size: 0.85rem; }
 .bj-ins { background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.45); border-radius: 12px; padding: 6px 14px; font-size: 0.9rem; text-align: center; max-width: 520px; }
 .bj-ins b { color: var(--gold); }
 .bj-msg.lose { color: #ff5c5c; }
