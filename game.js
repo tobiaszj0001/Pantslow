@@ -22,7 +22,7 @@ const ROSTER = [
   { id: 'watol',      name: 'Watol Wszechwładny', title: 'Wszechwładny',  glove: '#9b5cff', speed: 1.00, power: 1.50, legendary: true, taunt: 'Wszechwładza nie pyta o zgodę.' },
 ];
 
-const VERSION = 'v26';
+const VERSION = 'v27';
 const BASE_HP = 100;
 const METER_MAX = 100;
 
@@ -291,11 +291,13 @@ const VOICES = { data: {}, muted: false, last: {}, buffers: {}, pending: {},
     for (const f of this.files()) {
       if (this.buffers[f] || this.pending[f]) continue;
       this.pending[f] = true;
-      fetch('sounds/' + f).then((r) => r.arrayBuffer()).then((ab) => new Promise((res, rej) => {
+      const b64 = /\.b64$/.test(f); // nagranie mp3 zapisane jako tekst base64 (gdy binariów nie dało się wgrać)
+      fetch('sounds/' + f).then((r) => b64 ? r.text().then((t) => Uint8Array.from(atob(t.replace(/\s+/g, '')), (c) => c.charCodeAt(0)).buffer) : r.arrayBuffer()).then((ab) => new Promise((res, rej) => {
         const p = SFX.ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej);
       })).then((buf) => { this.buffers[f] = buf; }).catch(() => { delete this.pending[f]; });
     }
   },
+  stopEv(...evs) { for (const a of (this.active || [])) if (!a.done && evs.includes(a.ev)) { try { a.src.stop(); } catch (e) {} a.done = true; } },
   has(ch, ev) { const v = this.data[ch.id]; return !!(v && v[ev] && v[ev].length); },
   any(ch) { const v = this.data[ch.id]; return !!v && Object.keys(v).some((ev) => v[ev] && v[ev].length); },
   play(ch, ev, opts = {}) {
@@ -309,12 +311,15 @@ const VOICES = { data: {}, muted: false, last: {}, buffers: {}, pending: {},
     const buf = this.buffers[file];
     if (SFX.ctx && buf) {
       try {
+        if (ev === 'intro' || ev === 'wybor') this.stopEv('intro', 'wybor'); // nowe intro przerywa poprzednie (długie nagrania)
         const src = SFX.ctx.createBufferSource(); src.buffer = buf;
         const g = SFX.ctx.createGain(); g.gain.value = vol; src.connect(g); g.connect(SFX.dest()); src.start();
+        this.active = (this.active || []).filter((a) => !a.done); const rec = { src, ev, done: false }; src.onended = () => { rec.done = true; }; this.active.push(rec);
         return true;
       } catch (e) {}
     }
     this.preload();
+    if (/\.b64$/.test(file)) return false; // zdekoduje się za chwilę, bez zapasowego odtwarzacza
     try { const a = new Audio('sounds/' + file); a.volume = vol; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
     return true;
   },
@@ -1169,6 +1174,7 @@ class Match {
     this.spark(f.x, f.y - 140, f.ch.glove, 24); this.excite = 1;
   }
   knockout(att, def) {
+    VOICES.stopEv('intro'); // długie intro nie gra przez K.O. i ekran wyniku
     def.setState('ko'); def.vx = att.facing * 380; def.vy = -300; def.onGround = false;
     this.phase = 'ko'; this.phaseT = 0; this.winner = att.side; this.shake = 18; this.freeze = 0.18; this.excite = 1;
     this.perfect = att.stats.dmgTaken <= 0;
@@ -2419,6 +2425,7 @@ const App = {
   },
   show(id) {
     $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
+    if (id !== 's-game' && id !== 's-select') VOICES.stopEv('intro', 'wybor');
     this.screen = id;
     const scr = document.getElementById(id); if (scr) scr.scrollTop = 0; // nowy ekran zawsze od góry
     if (id === 's-title') { this.renderTitle(); setTimeout(() => this.checkDebt(), 400); }

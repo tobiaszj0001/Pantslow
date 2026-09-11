@@ -54,7 +54,7 @@ def main():
                                 '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', '-b:a', '96k', out], check=True)
             os.remove(src)
             f, base, ext = os.path.basename(out), slug(base), '.mp3'
-        elif ext != '.mp3':
+        elif ext not in ('.mp3', '.b64'):  # .b64 = mp3 zakodowane base64 (obejście, gdy binariów nie da się wgrać)
             print(f'  ! pomijam {f} (nieznany format)'); continue
         m = PAT.match(base)
         if not m:
