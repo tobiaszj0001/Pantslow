@@ -22,7 +22,7 @@ const ROSTER = [
   { id: 'watol',      name: 'Watol Wszechwładny', title: 'Wszechwładny',  glove: '#9b5cff', speed: 1.00, power: 1.50, legendary: true, taunt: 'Wszechwładza nie pyta o zgodę.' },
 ];
 
-const VERSION = 'v28';
+const VERSION = 'v29';
 const BASE_HP = 100;
 const METER_MAX = 100;
 
@@ -1538,21 +1538,30 @@ const CASINO = {
   cmpRank(a, b) { a = a || [0]; b = b || [0]; for (let i = 0; i < Math.max(a.length, b.length); i++) { const d = (a[i] || 0) - (b[i] || 0); if (d) return d; } return 0; },
   rankName(sc) { return ['wysoka karta', 'para', 'dwie pary', 'trójka', 'strit', 'kolor', 'full', 'kareta', 'poker'][sc[0]]; },
   // Stół budowany raz, potem aktualizowany w miejscu (karty nie skaczą przy każdym ruchu)
+  // ---------- POKER: Texas hold'em, 2-6 osób, AI liczące szanse ----------
   renderPoker() {
     const g = $('#casino-game'); const pk = this.pk;
     if (!pk) {
       const opts = [200, 500, 1000, 2000].filter((v) => v <= Math.max(200, this.chips()));
-      g.innerHTML = `<div class="poker"><div class="slot-title">♠️ TEXAS HOLD'EM</div><div class="t-hint">Grasz z trzema osobami z ekipy. Każda ma swój styl: jedna blefuje, jedna pasuje przy byle czym, jedna wchodzi all-in. Wybierz wpisowe (buy-in). Wychodząc od stołu, zabierasz cały stack.</div>
-        <div class="bj-ctrl">${opts.map((v) => `<button class="btn ${v === 500 ? 'btn-primary' : ''}" data-buyin="${v}" ${this.chips() < v ? 'disabled' : ''}>BUY-IN ${v}</button>`).join('')}</div>
-        <div class="t-hint">Zasady: blindy, potem flop (3 karty), turn, river. Wygrywa najlepszy układ z 5 kart (własne 2 + wspólne). Podbicie = o pół puli.</div></div>`;
-      $$('[data-buyin]').forEach((b) => b.onclick = () => this.pokerStart(+b.dataset.buyin));
+      this.pokerSeats = this.pokerSeats || 4; this.pokerBuyin = this.pokerBuyin || 500;
+      const heroes = ROSTER.filter((c) => c.id !== 'gazdziol'); const heroId = PROFILE.d.pokerHero && heroes.some((c) => c.id === PROFILE.d.pokerHero) ? PROFILE.d.pokerHero : heroes[0].id;
+      g.innerHTML = `<div class="poker pk-setup"><div class="slot-title">♠️ TEXAS HOLD'EM</div>
+        <div class="pk-opt"><div class="pk-opt-l">Kim grasz</div><div class="pk-heroes">${heroes.map((c) => `<button class="pk-hero ${heroId === c.id ? 'on' : ''}" data-hero="${c.id}" title="${c.name}"><img src="${headSrc(c)}" alt=""><span>${c.name}</span></button>`).join('')}</div></div>
+        <div class="pk-opts"><div class="pk-opt"><div class="pk-opt-l">Ile osób przy stole</div><div class="bj-ctrl">${[2, 3, 4, 5, 6].map((n) => `<button class="tab ${this.pokerSeats === n ? 'on' : ''}" data-seats="${n}">${n === 2 ? '2 (heads-up)' : n}</button>`).join('')}</div></div>
+        <div class="pk-opt"><div class="pk-opt-l">Wpisowe (buy-in)</div><div class="bj-ctrl">${opts.map((v) => `<button class="tab ${this.pokerBuyin === v ? 'on' : ''}" data-buyin="${v}" ${this.chips() < v ? 'disabled' : ''}>${v}</button>`).join('')}</div></div></div>
+        <div class="bj-ctrl"><button class="btn btn-primary btn-lg" id="pk-sit" ${this.chips() < this.pokerBuyin ? 'disabled' : ''}>SIADAM (${this.pokerBuyin})</button></div>
+        <div class="t-hint">Rywale z ekipy liczą szanse z kart i puli, grają pozycją i mają własne style: pasiwo, solidny, blefiarz, płaci wszystko, wariat. Blindy rosną co 10 rozdań. Wychodząc od stołu, zabierasz cały stack.</div></div>`;
+      $$('[data-hero]').forEach((b) => b.onclick = () => { PROFILE.d.pokerHero = b.dataset.hero; PROFILE.save(); const ch = heroes.find((c) => c.id === b.dataset.hero); if (ch) { SFX.ensure(); if (!VOICES.play(ch, 'wybor', { cooldown: 300 })) VOICES.play(ch, 'intro', { cooldown: 300 }); } this.renderPoker(); });
+      $$('[data-seats]').forEach((b) => b.onclick = () => { this.pokerSeats = +b.dataset.seats; this.renderPoker(); });
+      $$('[data-buyin]').forEach((b) => b.onclick = () => { this.pokerBuyin = +b.dataset.buyin; this.renderPoker(); });
+      $('#pk-sit').onclick = () => this.pokerStart(this.pokerBuyin, this.pokerSeats);
       return;
     }
     if (!pk.dom || !document.getElementById('pk-table')) this.pokerBuild();
     this.pokerUpdate();
   },
   pokerBuild() {
-    const g = $('#casino-game'), pk = this.pk;
+    const g = $('#casino-game'), pk = this.pk; const k = pk.n - 1;
     const seat = (i) => { const pl = pk.players[i]; return `<div class="seat ${i === 0 ? 'me' : ''}" id="pk-seat-${i}">
       <div class="marker" id="pk-mark-${i}"></div><div class="act" id="pk-act-${i}" hidden></div>
       <div class="seat-top"><img src="${headSrc(pl.ch)}" alt=""><div><div class="n">${i === 0 ? 'TY' : pl.ch.name}<small>${pl.style}</small></div><div class="stack" id="pk-stack-${i}"></div></div></div>
@@ -1562,7 +1571,7 @@ const CASINO = {
       <div class="pk-banner" id="pk-banner"></div>
       <div class="pk-layout">
         <div class="poker-table">
-          <div class="pk-row">${seat(1)}${seat(2)}${seat(3)}</div>
+          <div class="pk-row opp-${k}">${pk.players.slice(1).map((_, j) => seat(j + 1)).join('')}</div>
           <div class="community"><div class="street" id="pk-street"></div><div class="pot" id="pk-pot"></div><div class="cards" id="pk-board"></div></div>
           <div class="pk-row me-row">${seat(0)}</div>
         </div>
@@ -1594,14 +1603,15 @@ const CASINO = {
       const act = $('#pk-act-' + i); act.hidden = !pl.action; act.textContent = pl.action || ''; act.className = 'act ' + (pl.actKind || '');
       const mk = $('#pk-mark-' + i); mk.innerHTML = (pk.dealer === i ? '<span class="mk d">D</span>' : '') + (pk.sbI === i ? '<span class="mk sb">SB</span>' : '') + (pk.bbI === i ? '<span class="mk bb">BB</span>' : '');
       const bet = $('#pk-bet-' + i); bet.innerHTML = pl.bet ? `<span class="chipstack">${'●'.repeat(Math.min(5, Math.ceil(pl.bet / Math.max(1, pk.bb))))}</span> ${pl.bet}` : ''; bet.classList.toggle('max', pl.bet > 0 && pl.bet === maxBet);
-      const hidden = i !== 0 && !showdown; const cardsEl = $('#pk-cards-' + i);
+      const cardsEl = $('#pk-cards-' + i);
       if (pl.folded && i !== 0) cardsEl.classList.add('dim'); else cardsEl.classList.remove('dim');
-      this.syncCards(cardsEl, pl.cards, hidden && !pl.folded ? true : (pl.folded && i !== 0 ? true : false));
-      $('#pk-rank-' + i).textContent = (showdown && !pl.folded && pl.rank) ? this.rankName(pl.rank).toUpperCase() : '';
+      const showCards = i === 0 || (showdown && !pl.folded && pl.shown);
+      this.syncCards(cardsEl, pl.cards, !showCards);
+      $('#pk-rank-' + i).textContent = (showdown && !pl.folded && pl.rank && pl.shown) ? this.rankName(pl.rank).toUpperCase() : '';
     });
     this.syncCards($('#pk-board'), pk.board, false);
     $('#pk-pot').innerHTML = `PULA <b>${pk.pot}</b>${maxBet ? ` <small>+ na stole ${pk.players.reduce((a, p) => a + p.bet, 0)}</small>` : ''}`;
-    $('#pk-street').textContent = ['PRE-FLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN'][pk.street] || '';
+    $('#pk-street').textContent = (['PRE-FLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN'][pk.street] || '') + ` • blindy ${pk.sb}/${pk.bb}`;
     const banner = $('#pk-banner');
     if (pk.phase === 'over') { banner.textContent = 'ROZDANIE ZAKOŃCZONE'; banner.className = 'pk-banner over'; }
     else if (pk.active && pk.turn === 0) { banner.textContent = `TWÓJ RUCH${pk.toCall(0) ? ' • do sprawdzenia ' + Math.min(pk.toCall(0), me.stack) : ' • możesz czekać'}`; banner.className = 'pk-banner mine'; }
@@ -1612,47 +1622,73 @@ const CASINO = {
     if (me.cards.length === 2 && !me.folded && pk.phase !== 'over') { const r = pk.board.length >= 3 ? this.handRank(me.cards.concat(pk.board)) : null; hint.textContent = r ? `Masz teraz: ${this.rankName(r)}` : `Twoje karty: ${me.cards.map((c) => c.r + c.su).join(' ')}`; } else hint.textContent = '';
     const ctrl = $('#pk-ctrl');
     if (pk.phase === 'over') ctrl.innerHTML = `<button class="btn btn-primary btn-lg" id="pk-next">NASTĘPNE ROZDANIE</button><button class="btn btn-ghost" id="pk-leave">Wstań od stołu (${me.stack})</button>`;
-    else if (pk.turn === 0 && pk.active) { const tc = Math.min(pk.toCall(0), me.stack); ctrl.innerHTML = `<button class="btn btn-fold" id="pk-fold">PAS</button><button class="btn btn-primary" id="pk-call">${tc === 0 ? 'CZEKAM' : 'SPRAWDZAM ' + tc}</button>${me.stack > pk.toCall(0) ? `<button class="btn" id="pk-raise">PODBIJAM DO ${me.bet + pk.raiseAmt(0)}</button>` : ''}<button class="btn btn-allin" id="pk-allin">ALL-IN ${me.stack}</button>`; }
+    else if (pk.turn === 0 && pk.active) {
+      const tc = Math.min(pk.toCall(0), me.stack); const sz = this.pokerSizes(0);
+      ctrl.innerHTML = `<button class="btn btn-fold" id="pk-fold">PAS</button><button class="btn btn-primary" id="pk-call">${tc === 0 ? 'CZEKAM' : 'SPRAWDZAM ' + tc}</button>` +
+        (sz.half ? `<button class="btn" id="pk-raise-h" title="do ${sz.half}">${tc === 0 ? 'STAWIAM' : 'PODBIJAM'} ½ <small>do ${sz.half}</small></button>` : '') +
+        (sz.pot && sz.pot !== sz.half ? `<button class="btn" id="pk-raise-p" title="do ${sz.pot}">${tc === 0 ? 'STAWIAM' : 'PODBIJAM'} PULA <small>do ${sz.pot}</small></button>` : '') +
+        `<button class="btn btn-allin" id="pk-allin">ALL-IN ${me.stack}</button>`;
+    }
     else ctrl.innerHTML = `<span class="t-hint">${pk.active ? 'Czekaj na swój ruch.' : ''}</span>`;
     const b = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
     b('#pk-next', () => this.pokerNewHand()); b('#pk-leave', () => this.pokerLeave());
-    b('#pk-fold', () => this.pokerAct(0, 'fold')); b('#pk-call', () => this.pokerAct(0, 'call')); b('#pk-raise', () => this.pokerAct(0, 'raise')); b('#pk-allin', () => this.pokerAct(0, 'allin'));
+    b('#pk-fold', () => this.pokerAct(0, 'fold')); b('#pk-call', () => this.pokerAct(0, 'call'));
+    b('#pk-raise-h', () => this.pokerAct(0, 'raise', this.pokerSizes(0).half)); b('#pk-raise-p', () => this.pokerAct(0, 'raise', this.pokerSizes(0).pot)); b('#pk-allin', () => this.pokerAct(0, 'allin'));
     const log = $('#pk-log'); if (log && pk.log) { log.innerHTML = pk.log.slice(-40).map((l) => `<div class="${l.cls || ''}">${l.t}</div>`).join(''); log.scrollTop = log.scrollHeight; }
   },
   pokerLog(t, cls) { const pk = this.pk; if (!pk) return; pk.log = pk.log || []; pk.log.push({ t, cls }); if (pk.log.length > 200) pk.log.shift(); },
-  pokerStart(buyin) {
+  // wielkości podbicia "do kwoty": pół puli i cała pula (liczone po wyrównaniu), nie mniej niż minimalne podbicie
+  pokerSizes(i) {
+    const pk = this.pk, p = pk.players[i]; const toCall = pk.toCall(i); const maxBet = Math.max(...pk.players.map((q) => q.bet));
+    const potAfter = pk.pot + pk.players.reduce((a, q) => a + q.bet, 0) + toCall;
+    const minTo = maxBet + Math.max(pk.lastRaise || pk.bb, pk.bb); const cap = p.bet + p.stack;
+    const round = (v) => Math.max(minTo, Math.round(v / 5) * 5);
+    let half = round(maxBet + potAfter * 0.5), pot = round(maxBet + potAfter);
+    if (half >= cap) half = null; else half = Math.min(half, cap);
+    if (pot >= cap) pot = null; else pot = Math.min(pot, cap);
+    if (half && pot && pot - half < pk.bb) pot = null;
+    return { half, pot, minTo, cap, potAfter, toCall };
+  },
+  pokerStart(buyin, seats) {
     if (this.chips() < buyin) return; this.pay(-buyin);
-    const others = shuffle(ROSTER.filter((c) => c.id !== 'gazdziol')).slice(0, 3);
-    const styles = [['blefiarz', 'bluff'], ['pasiwo', 'tight'], ['all-in', 'maniac']];
-    const players = [{ ch: this.previewChar || ROSTER[0], stack: buyin, style: 'ty', ai: null }].concat(others.map((ch, i) => ({ ch, stack: buyin, style: styles[i][0], ai: styles[i][1] })));
+    seats = clamp(seats || 4, 2, 6);
+    const hero = ROSTER.find((c) => c.id === PROFILE.d.pokerHero && c.id !== 'gazdziol') || ROSTER[0];
+    const others = shuffle(ROSTER.filter((c) => c.id !== 'gazdziol' && c.id !== hero.id)).slice(0, seats - 1);
+    const STYLES = shuffle([['solidny', 'solid'], ['blefiarz', 'bluff'], ['pasiwo', 'tight'], ['płaci wszystko', 'station'], ['wariat', 'maniac']]);
+    const players = [{ ch: hero, stack: buyin, style: 'ty', ai: null }].concat(others.map((ch, i) => ({ ch, stack: buyin, style: STYLES[i % STYLES.length][0], ai: STYLES[i % STYLES.length][1] })));
     players.forEach((p) => { p.cards = []; p.bet = 0; p.folded = false; p.inHand = false; p.action = ''; p.allin = false; p.total = 0; });
-    this.pk = { players, buyin, dealer: 0, sb: Math.max(5, Math.round(buyin / 100)), bb: Math.max(10, Math.round(buyin / 50)), board: [], pot: 0, street: 0, turn: -1, phase: 'over', msg: 'Siadasz do stołu. Kliknij „Następne rozdanie”.', active: false, log: [], handNo: 0,
-      toCall: (i) => Math.max(0, Math.max(...this.pk.players.map((p) => p.bet)) - this.pk.players[i].bet),
-      raiseAmt: (i) => { const pk = this.pk; const potNow = pk.pot + pk.players.reduce((a, p) => a + p.bet, 0); const raise = Math.max(pk.lastRaise || pk.bb, Math.round(potNow / 2 / 5) * 5); return Math.min(pk.players[i].stack, pk.toCall(i) + raise); } };
-    this.pokerLog(`Stół: ${others.map((c) => c.name).join(', ')}. Buy-in ${buyin}, blindy ${this.pk.sb}/${this.pk.bb}.`, 'sys');
+    const bb0 = Math.max(10, Math.round(buyin / 50 / 5) * 5);
+    this.pk = { players, n: players.length, buyin, dealer: 0, sb: Math.max(5, bb0 / 2), bb: bb0, bb0, board: [], pot: 0, street: 0, turn: -1, phase: 'over', msg: '', active: false, log: [], handNo: 0,
+      toCall: (i) => Math.max(0, Math.max(...this.pk.players.map((p) => p.bet)) - this.pk.players[i].bet) };
+    this.pokerLog(`Stół na ${seats} osób: ${others.map((c, i) => c.name + ' (' + players[i + 1].style + ')').join(', ')}. Buy-in ${buyin}, blindy ${this.pk.sb}/${this.pk.bb}.`, 'sys');
     this.pk.msg = 'Siadasz do stołu. Gazdziol tasuje…';
     this.renderPoker();
-    const pk = this.pk; setTimeout(() => { if (this.pk === pk && !pk.active && pk.handNo === 0) this.pokerNewHand(); }, 1200); // pierwsze rozdanie samo rusza
+    const pk = this.pk; setTimeout(() => { if (this.pk === pk && !pk.active && pk.handNo === 0) this.pokerNewHand(); }, 1200);
   },
   pokerLeave() { const pk = this.pk; if (!pk || pk.active) return; clearTimeout(this.pkWatchdog); const me = pk.players[0]; this.pay(me.stack); this.track(me.stack - pk.buyin, pk.buyin); PROFILE.d.pokerWon += Math.max(0, me.stack - pk.buyin); if (me.stack > pk.buyin) this.say('win'); else if (me.stack < pk.buyin) this.say('lose'); this.pk = null; this.checkTrophies(); this.renderPoker(); },
+  pokerNextLive(i, pred) { const pk = this.pk; let j = i, g = 0; do { j = (j + 1) % pk.n; if (++g > pk.n * 2) return -1; } while (!pred(pk.players[j])); return j; },
   async pokerNewHand() {
     const pk = this.pk; if (!pk || pk.active) return;
-    pk.players.forEach((p) => { p.cards = []; p.bet = 0; p.total = 0; p.folded = p.stack <= 0; p.inHand = p.stack > 0; p.action = ''; p.actKind = ''; p.allin = false; p.rank = null; });
+    // gracze bez żetonów odpadają na stałe; przy stole bez rywali gra się kończy
+    pk.players.forEach((p) => { p.cards = []; p.bet = 0; p.total = 0; p.folded = p.stack <= 0; p.inHand = p.stack > 0; p.action = ''; p.actKind = ''; p.allin = false; p.rank = null; p.shown = false; p.aggressor = false; });
     pk.winners = null; pk.showdown = false;
     const live = pk.players.filter((p) => p.inHand);
     if (!pk.players[0].inHand) { pk.msg = 'Zero żetonów. Wstajesz od stołu.'; this.renderPoker(); this.pokerLeave(); return; }
     if (live.length < 2) { pk.msg = 'Ograłeś wszystkich! Stół się rozchodzi.'; pk.phase = 'over'; this.renderPoker(); this.pokerLeave(); return; }
-    pk.deck = this.newDeck(); pk.board = []; pk.pot = 0; pk.street = 0; pk.phase = 'play'; pk.active = true; pk.msg = ''; pk.msgWin = false; pk.lastRaise = pk.bb; pk.handNo++;
-    do { pk.dealer = (pk.dealer + 1) % 4; } while (!pk.players[pk.dealer].inHand);
-    const nextLive = (i) => { let j = i; do { j = (j + 1) % 4; } while (!pk.players[j].inHand); return j; };
-    pk.sbI = nextLive(pk.dealer); pk.bbI = nextLive(pk.sbI);
+    pk.handNo++;
+    if (pk.handNo > 1 && pk.handNo % 10 === 1) { pk.bb = Math.round(pk.bb * 1.5 / 5) * 5; pk.sb = Math.max(5, Math.round(pk.bb / 2 / 5) * 5); this.pokerLog(`Blindy rosną: ${pk.sb}/${pk.bb}`, 'sys'); }
+    pk.deck = this.newDeck(); pk.board = []; pk.pot = 0; pk.street = 0; pk.phase = 'play'; pk.active = true; pk.msg = ''; pk.msgWin = false; pk.lastRaise = pk.bb; pk.preflopAggr = null;
+    const inHand = (p) => p.inHand;
+    pk.dealer = this.pokerNextLive(pk.dealer, inHand);
+    if (live.length === 2) { pk.sbI = pk.dealer; pk.bbI = this.pokerNextLive(pk.dealer, inHand); } // heads-up: dealer jest small blindem
+    else { pk.sbI = this.pokerNextLive(pk.dealer, inHand); pk.bbI = this.pokerNextLive(pk.sbI, inHand); }
     this.pokerLog(`— Rozdanie ${pk.handNo} — dealer: ${pk.dealer === 0 ? 'ty' : pk.players[pk.dealer].ch.name}`, 'sys');
     this.pokerPost(pk.sbI, pk.sb); this.pokerPost(pk.bbI, pk.bb);
     pk.players[pk.sbI].action = 'SB ' + pk.sb; pk.players[pk.bbI].action = 'BB ' + pk.bb;
     PROFILE.d.pokerHands++;
     this.renderPoker(); await this.wait(500);
-    for (let k = 0; k < 2; k++) for (const p of pk.players) if (p.inHand) { p.cards.push(pk.deck.pop()); this.flip(); this.pokerUpdate(); await this.wait(180); }
-    pk.turn = nextLive(pk.bbI); pk.acted = new Set();
+    for (let k = 0; k < 2; k++) for (const p of pk.players) if (p.inHand) { p.cards.push(pk.deck.pop()); this.flip(); this.pokerUpdate(); await this.wait(150); }
+    pk.turn = this.pokerNextLive(pk.bbI, inHand); pk.acted = new Set();
     this.pokerUpdate(); this.pokerLoop();
   },
   pokerPost(i, amt) { const p = this.pk.players[i]; const a = Math.min(amt, p.stack); p.stack -= a; p.bet += a; p.total += a; if (p.stack === 0) p.allin = true; },
@@ -1666,7 +1702,7 @@ const CASINO = {
     clearTimeout(this.pkWatchdog);
     this.pkWatchdog = setTimeout(() => {
       if (this.pk !== pk || !pk.active || pk.phase === 'over') return;
-      if (pk.turn === 0) return; // czekamy na gracza, to nie zawieszenie
+      if (pk.turn === 0) return;
       const tick = pk.tick;
       pk.stuck = (pk.stuck || 0) + 1;
       this.pokerLog('Gazdziol: „Halo, gramy!” (popycham stół)', 'sys');
@@ -1683,44 +1719,84 @@ const CASINO = {
     const maxBet = Math.max(...pk.players.map((p) => p.bet));
     const roundDone = canAct.every((p) => pk.acted.has(p) && p.bet === maxBet) || canAct.length === 0;
     if (roundDone) { await this.wait(650); await this.pokerNextStreet(); return; }
-    let guard = 0; while (!(pk.players[pk.turn].inHand && !pk.players[pk.turn].folded && !pk.players[pk.turn].allin)) { pk.turn = (pk.turn + 1) % 4; if (++guard > 8) { await this.pokerNextStreet(); return; } }
+    const actor = (p) => p.inHand && !p.folded && !p.allin;
+    if (!actor(pk.players[pk.turn])) { const t = this.pokerNextLive(pk.turn, actor); if (t < 0) { await this.pokerNextStreet(); return; } pk.turn = t; }
     this.pokerUpdate();
-    if (pk.turn !== 0) { const t = pk.turn, tick = pk.tick; await this.wait(rand(1100, 1700)); if (this.pk === pk && pk.active && pk.turn === t && pk.tick === tick) this.pokerAI(t); }
+    if (pk.turn !== 0) { const t = pk.turn, tick = pk.tick; await this.wait(rand(700, 1500)); if (this.pk === pk && pk.active && pk.turn === t && pk.tick === tick) this.pokerAI(t); }
   },
-  pokerAct(i, act) {
+  pokerAct(i, act, to) {
     const pk = this.pk, p = pk.players[i]; if (!pk.active || pk.turn !== i) return;
     const toCall = pk.toCall(i); const who = i === 0 ? 'Ty' : p.ch.name;
+    if (act === 'fold' && toCall === 0) act = 'call'; // czekanie za darmo zamiast pasowania
     if (act === 'fold') { p.folded = true; p.action = 'PAS'; p.actKind = 'fold'; this.pokerLog(`${who}: pas`, 'fold'); }
     else if (act === 'call') { const a = Math.min(toCall, p.stack); this.pokerPost(i, a); p.action = a === 0 ? 'CZEKA' : (p.allin ? 'ALL-IN ' + p.bet : 'SPRAWDZA ' + a); p.actKind = a === 0 ? 'check' : (p.allin ? 'allin' : 'call'); this.pokerLog(a === 0 ? `${who}: czeka` : `${who}: sprawdza ${a}${p.allin ? ' (all-in)' : ''}`, p.actKind); }
     else if (act === 'raise' || act === 'allin') {
-      const amt = act === 'allin' ? p.stack : pk.raiseAmt(i); const prevMax = Math.max(...pk.players.map((q) => q.bet));
-      this.pokerPost(i, amt); const newMax = p.bet; if (newMax > prevMax) { pk.lastRaise = Math.max(pk.bb, newMax - prevMax); pk.acted = new Set(); }
+      const prevMax = Math.max(...pk.players.map((q) => q.bet));
+      let target = act === 'allin' ? p.bet + p.stack : Math.min(p.bet + p.stack, Math.max(to || 0, this.pokerSizes(i).minTo));
+      this.pokerPost(i, target - p.bet); const newMax = p.bet;
+      if (newMax > prevMax) { pk.lastRaise = Math.max(pk.lastRaise || pk.bb, newMax - prevMax); pk.acted = new Set(); pk.players.forEach((q) => { q.aggressor = false; }); p.aggressor = true; if (pk.street === 0) pk.preflopAggr = p; }
       p.action = p.allin ? 'ALL-IN ' + p.bet : (prevMax === 0 ? 'STAWIA ' + p.bet : 'PODBIJA DO ' + p.bet); p.actKind = p.allin ? 'allin' : 'raise';
       this.pokerLog(p.allin ? `${who}: ALL-IN za ${p.bet}!` : (prevMax === 0 ? `${who}: stawia ${p.bet}` : `${who}: podbija do ${p.bet}`), p.actKind);
-      if (p.allin || newMax >= prevMax * 2) SFX.tone(500, 0.12, 0.2, 'square', 1.4); 
+      if (p.allin || newMax >= prevMax * 2) SFX.tone(500, 0.12, 0.2, 'square', 1.4);
     }
     pk.acted.add(p); this.flip(); pk.tick = (pk.tick || 0) + 1; pk.stuck = 0;
-    pk.turn = (pk.turn + 1) % 4; this.pokerUpdate(); this.pokerLoop();
+    pk.turn = (pk.turn + 1) % pk.n; this.pokerUpdate(); this.pokerLoop();
   },
-  pokerStrength(i) {
-    const pk = this.pk, p = pk.players[i]; const cards = p.cards.concat(pk.board);
-    if (pk.board.length === 0) { const RV = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 }; const a = RV[p.cards[0].r], b = RV[p.cards[1].r]; let s = (a + b) / 28; if (a === b) s += 0.35 + a / 60; if (p.cards[0].su === p.cards[1].su) s += 0.06; if (Math.abs(a - b) <= 2) s += 0.04; if (Math.max(a, b) >= 13) s += 0.08; return clamp(s, 0.05, 1); }
-    const r = this.handRank(cards); const cat = r[0]; const boardOnly = this.handRank(pk.board.length >= 5 ? pk.board : pk.board.concat([{ r: '2', su: '♠' }, { r: '3', su: '♦' }].slice(0, 5 - pk.board.length)));
-    let s = [0.15, 0.4, 0.6, 0.75, 0.85, 0.9, 0.96, 0.99, 1][cat]; if (cat === 1 && r[1] >= 11) s += 0.08; if (boardOnly && boardOnly[0] === cat && cat > 0) s -= 0.2; if (cat === 0 && r[1] === 14) s += 0.08;
-    const suits = {}; cards.forEach((c) => suits[c.su] = (suits[c.su] || 0) + 1); if (pk.board.length < 5 && Object.values(suits).some((n) => n === 4)) s += 0.15;
-    return clamp(s, 0.05, 1);
+  // szansa wygranej (Monte Carlo): losujemy karty rywali i resztę stołu, liczymy, jak często nasz układ jest najlepszy
+  pokerEquity(hole, board, nOpp, sims) {
+    const known = new Set(hole.concat(board).map((c) => c.r + c.su));
+    const deck = []; for (const su of ['♠', '♥', '♦', '♣']) for (const r of ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']) if (!known.has(r + su)) deck.push({ r, su });
+    const need = nOpp * 2 + (5 - board.length); let score = 0;
+    for (let s = 0; s < sims; s++) {
+      for (let k = 0; k < need; k++) { const j = k + Math.floor(Math.random() * (deck.length - k)); const t = deck[k]; deck[k] = deck[j]; deck[j] = t; }
+      const full = board.concat(deck.slice(nOpp * 2, need));
+      const mine = this.handRank(hole.concat(full)); let best = 1, ties = 0;
+      for (let o = 0; o < nOpp; o++) { const c = this.cmpRank(this.handRank([deck[o * 2], deck[o * 2 + 1]].concat(full)), mine); if (c > 0) { best = 0; break; } if (c === 0) ties++; }
+      score += best ? 1 / (1 + ties) : 0;
+    }
+    return score / sims;
   },
   pokerAI(i) {
     const pk = this.pk, p = pk.players[i]; if (!pk.active || pk.turn !== i) return;
-    const st = this.pokerStrength(i), toCall = pk.toCall(i), potNow = pk.pot + pk.players.reduce((a, q) => a + q.bet, 0);
-    const costRatio = toCall / Math.max(1, potNow + toCall); const r = Math.random();
-    let act = 'fold';
-    if (p.ai === 'tight') { if (st > 0.75 && r < 0.6) act = 'raise'; else if (st > 0.55 || toCall === 0) act = 'call'; else if (st > 0.4 && costRatio < 0.15) act = 'call'; else act = toCall === 0 ? 'call' : 'fold'; }
-    else if (p.ai === 'bluff') { if (r < 0.3 && toCall < p.stack * 0.4) act = 'raise'; else if (st > 0.6 && r < 0.6) act = 'raise'; else if (st > 0.3 || toCall === 0 || costRatio < 0.2) act = 'call'; else act = 'fold'; }
-    else { if (st > 0.55 && r < 0.5) act = 'allin'; else if (st > 0.65 || (r < 0.15 && pk.street === 0)) act = 'allin'; else if (st > 0.35 || toCall === 0 || costRatio < 0.25) act = 'call'; else act = 'fold'; }
-    if (act === 'raise' && p.stack <= toCall) act = 'call';
-    if (act === 'fold' && toCall === 0) act = 'call';
-    this.pokerAct(i, act);
+    const live = pk.players.filter((q) => q.inHand && !q.folded); const nOpp = live.length - 1;
+    const toCall = Math.min(pk.toCall(i), p.stack), potNow = pk.pot + pk.players.reduce((a, q) => a + q.bet, 0);
+    const potOdds = toCall / Math.max(1, potNow + toCall);
+    const eq = this.pokerEquity(p.cards, pk.board, nOpp, pk.board.length ? 160 : 120);
+    const S = { tight: { margin: 0.07, ag: 0.35, bluff: 0.03, raiseAt: 0.66, callBig: 0.6 }, solid: { margin: 0.02, ag: 0.6, bluff: 0.09, raiseAt: 0.58, callBig: 0.52 }, bluff: { margin: -0.05, ag: 0.85, bluff: 0.24, raiseAt: 0.5, callBig: 0.45 }, station: { margin: -0.12, ag: 0.15, bluff: 0.02, raiseAt: 0.7, callBig: 0.4 }, maniac: { margin: -0.08, ag: 1.1, bluff: 0.28, raiseAt: 0.45, callBig: 0.42 } }[p.ai] || { margin: 0.02, ag: 0.6, bluff: 0.08, raiseAt: 0.58, callBig: 0.52 };
+    const hu = nOpp === 1 ? 0.06 : 0; // heads-up gra się luźniej
+    const jitter = (Math.random() - 0.5) * 0.08;
+    const bbStack = p.stack / pk.bb; const sizes = this.pokerSizes(i);
+    // pozycja: ilu graczy jeszcze po mnie w tej rundzie
+    let after = 0; for (let j = 1; j < pk.n; j++) { const q = pk.players[(i + j) % pk.n]; if (q === pk.players[pk.dealer]) break; if (q.inHand && !q.folded && !q.allin) after++; }
+    const late = after === 0;
+    const bigBet = toCall > 0 && toCall >= Math.min(p.stack, potNow) * 0.6;
+    let act = 'call', to = null;
+    const r = Math.random();
+    const raiseTo = (frac) => { const t = Math.round((Math.max(...pk.players.map((q) => q.bet)) + sizes.potAfter * frac) / 5) * 5; return Math.max(sizes.minTo, Math.min(p.bet + p.stack, t)); };
+    if (bbStack < 9 && toCall < p.stack) { // krótki stack: push albo fold
+      if (eq + hu > 0.42 + S.margin * 0.5 + jitter) { act = 'allin'; } else act = toCall === 0 ? 'call' : 'fold';
+    } else if (toCall === 0) {
+      if (eq + hu > S.raiseAt + jitter) { act = 'raise'; to = raiseTo(eq > 0.75 ? 0.75 : 0.55); }
+      else if (eq + hu > 0.42 + jitter && r < S.ag * 0.5 + (late ? 0.15 : 0)) { act = 'raise'; to = raiseTo(0.5); }
+      else if (r < S.bluff * (late ? 1.4 : 0.7) && nOpp <= 2 && eq > 0.18) { act = 'raise'; to = raiseTo(0.6); } // blef, częściej na pozycji i przeciw 1-2 osobom
+      else if (pk.street === 0 && p.ai === 'station' && eq > 0.3) act = 'call';
+      else act = 'call';
+      if (pk.preflopAggr === p && pk.street === 1 && act === 'call' && r < 0.55 + S.ag * 0.2 && eq > 0.3) { act = 'raise'; to = raiseTo(0.5); } // continuation bet
+    } else {
+      const edge = eq + hu - potOdds;
+      if (bigBet && eq + hu < S.callBig + jitter) act = 'fold';
+      else if (eq + hu > S.raiseAt + 0.06 + jitter && r < S.ag) { act = 'raise'; to = raiseTo(eq > 0.8 ? 1.0 : 0.6); }
+      else if (edge > S.margin + jitter) act = 'call';
+      else if (r < S.bluff * 0.5 && !bigBet && toCall < p.stack * 0.25 && nOpp === 1) { act = 'raise'; to = raiseTo(0.7); } // rzadki re-blef
+      else act = 'fold';
+      if (p.ai === 'station' && act === 'fold' && eq + hu > potOdds * 0.6 && !bigBet) act = 'call';
+      if (p.ai === 'maniac' && act === 'call' && r < 0.3 && eq > 0.4) { act = 'raise'; to = raiseTo(1.0); }
+    }
+    if (act === 'raise' && (to === null || to >= p.bet + p.stack)) act = 'allin';
+    if (act === 'raise' && to <= Math.max(...pk.players.map((q) => q.bet))) act = 'call';
+    if (act === 'allin' && eq + hu < 0.3 && bbStack >= 9) act = toCall === 0 ? 'call' : 'fold'; // nie all-in ze śmieciem
+    p.lastEq = eq;
+    this.pokerAct(i, act, to);
   },
   async pokerNextStreet() {
     const pk = this.pk; if (!pk || !pk.active) return;
@@ -1739,7 +1815,7 @@ const CASINO = {
     const dealt = []; for (let k = 0; k < n; k++) { const c = pk.deck.pop(); pk.board.push(c); dealt.push(c.r + c.su); this.flip(); this.pokerUpdate(); await this.wait(520); }
     this.pokerLog(`${names[pk.street]}: ${dealt.join(' ')}`, 'sys');
     if (canAct.length <= 1) { await this.wait(700); this.pokerNextStreet(); return; }
-    let t = pk.dealer; do { t = (t + 1) % 4; } while (!(pk.players[t].inHand && !pk.players[t].folded && !pk.players[t].allin)); pk.turn = t;
+    const t = this.pokerNextLive(pk.dealer, (p) => p.inHand && !p.folded && !p.allin); if (t < 0) { this.pokerNextStreet(); return; } pk.turn = t;
     this.pokerLoop();
   },
   async pokerShowdown() {
@@ -1766,9 +1842,19 @@ const CASINO = {
     if (live.length > 1) { pk.showdown = true; pk.street = 4; this.pokerUpdate(); await this.wait(600);
       while (pk.board.length < 5) { pk.board.push(pk.deck.pop()); this.flip(); this.pokerUpdate(); await this.wait(520); } }
     for (const p of live) p.rank = live.length > 1 ? this.handRank(p.cards.concat(pk.board)) : null;
+    // odkrywanie kart po kolei od gracza: kto ma gorszy układ niż już pokazany, może zrzucić w ciemno (muck)
+    if (live.length > 1) {
+      let bestShown = null; const order = [pk.players[0]].filter((p) => live.includes(p)).concat(live.filter((p) => p !== pk.players[0]));
+      for (const p of order) {
+        const beaten = bestShown && this.cmpRank(p.rank, bestShown) < 0 && p !== pk.players[0] && p.total <= Math.max(...live.map((q) => q.total));
+        if (beaten && Math.random() < 0.7) { p.mucked = true; p.action = 'ZRZUCA'; p.actKind = 'fold'; this.pokerLog(`${p.ch.name} zrzuca karty w ciemno`, 'fold'); }
+        else { p.shown = true; if (!bestShown || this.cmpRank(p.rank, bestShown) > 0) bestShown = p.rank; p.action = this.rankName(p.rank).toUpperCase(); p.actKind = 'show'; this.pokerLog(`${p === pk.players[0] ? 'Ty' : p.ch.name}: ${p.cards.map((c) => c.r + c.su).join(' ')} (${this.rankName(p.rank)})`, 'sys'); }
+        this.pokerUpdate(); await this.wait(650);
+      }
+    }
     const contrib = pk.players.map((p) => p.total); const levels = [...new Set(contrib.filter((c) => c > 0))].sort((a, b) => a - b);
     let prev = 0; const wins = {}; const msg = []; pk.winners = new Set();
-    if (live.length === 1) { const w = live[0]; w.stack += pk.pot; wins[w.ch.id] = pk.pot; pk.winners.add(w); levels.length = 0; } // wszyscy spasowali: cała pula dla ostatniego
+    if (live.length === 1) { const w = live[0]; w.stack += pk.pot; wins[w.ch.id] = pk.pot; pk.winners.add(w); levels.length = 0; }
     for (const lv of levels) {
       const potPart = pk.players.reduce((a, p) => a + Math.max(0, Math.min(p.total, lv) - prev), 0);
       const elig = live.filter((p) => p.total >= lv);
@@ -1781,8 +1867,9 @@ const CASINO = {
     if (live.length === 1) msg.push(`${live[0] === me ? 'Wszyscy spasowali, bierzesz pulę' : live[0].ch.name + ' zgarnia pulę, reszta spasowała'}: +${wins[live[0].ch.id] || 0}`);
     else for (const [id, amt] of Object.entries(wins)) { const p = pk.players.find((q) => q.ch.id === id); msg.push(`${p === me ? 'TY' : p.ch.name} wygrywa ${amt} (${this.rankName(p.rank)})`); }
     pk.msg = msg.join(' • '); pk.msgWin = !!wins[me.ch.id];
-    for (const w of pk.winners) w.action = 'WYGRYWA'; for (const w of pk.winners) w.actKind = 'win';
+    for (const w of pk.winners) { w.action = 'WYGRYWA'; w.actKind = 'win'; w.shown = true; }
     this.pokerLog(pk.msg, pk.msgWin ? 'win' : 'sys');
+    const busted = pk.players.filter((p) => p.inHand && p.stack <= 0 && p !== me); for (const b of busted) this.pokerLog(`${b.ch.name} odpada od stołu (zero żetonów)`, 'sys');
     if (wins[me.ch.id]) { SFX.bell(); this.say('win'); } else if (!me.folded) { SFX.hurt(); this.say('lose'); }
     this.pokerUpdate();
   },
@@ -2224,7 +2311,7 @@ const TUTORIAL = {
           ${item('🎡', 'Ruletka', 'Wybierz żeton, kliknij pole na stole, KRĘĆ. Numer płaci 35:1, kolor 1:1.')}
           ${item('🃏', 'Blackjack', 'Dobieraj do 21. Krupier stoi na 17, blackjack płaci 3:2. Jest podwojenie i split.')}
           ${item('🎰', 'Bandyta', 'Trzy bębny z głowami ekipy. Trzy razy Król Pała = jackpot progresywny.')}
-          ${item('♠️', 'Poker', 'Texas hold’em z trzema AI o różnych stylach. Baner na górze mówi, czyj ruch.')}
+          ${item('♠️', 'Poker', 'Texas hold’em na 2-6 osób: wybierasz postać, liczbę rywali i wpisowe. Rywale liczą szanse i mają style (solidny, pasiwo, blefiarz, płaci wszystko, wariat). Baner na górze mówi, czyj ruch.')}
           ${item('🏁', 'Wyścigi i szybkie gry', 'Obstaw, kto dobiegnie do liny. Do tego kości i wyżej/niżej z rosnącym mnożnikiem.')}
           ${item('💸', 'Dług i pojedynek', 'Przegrane liczą się „do odkucia”: możesz wyzwać Gazdziola na ring i odzyskać wszystko. Pusta kieszeń? Gazdziol pożyczy, ale po terminie przychodzi Watol windykator.')}
         </div>

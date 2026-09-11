@@ -90,8 +90,11 @@ blackjack (krupier stoi na 17, blackjack 3:2, podwojenie (także po splicie), sp
 Przegrane żetony liczą się w „do odkucia”: możesz wyzwać krupiera na pojedynek w ringu. Wygrasz, odzyskujesz wszystko.
 Przegrasz, licznik się zeruje.
 
-Do tego: **jednoręki bandyta** z głowami ekipy (3x Król Pała = jackpot), **poker Texas hold'em** z trzema AI o różnych stylach
-(blefiarz, pasiwo, all-in), **wyścigi ekipy** z kursami według formy i komentarzem, **kości** i **wyżej/niżej** z rosnącym mnożnikiem.
+Do tego: **jednoręki bandyta** z głowami ekipy (3x Król Pała = jackpot), **poker Texas hold'em** na 2-6 osób: wybierasz
+swoją postać, liczbę osób i wpisowe; rywale liczą szanse wygranej metodą Monte Carlo (losują nieznane karty i sprawdzają, jak
+często ich układ jest najlepszy), porównują je z ceną sprawdzenia, grają pozycją, c-betują, blefują w zależności od stylu
+(solidny, pasiwo, blefiarz, płaci wszystko, wariat), przy krótkim stacku grają push/fold; blindy rosną co 10 rozdań, gracz ma
+podbicie o pół puli, o pulę i all-in, przegrany układ może zrzucić w ciemno, **wyścigi ekipy** z kursami według formy i komentarzem, **kości** i **wyżej/niżej** z rosnącym mnożnikiem.
 **Jackpot progresywny** rośnie o 5% każdej przegranej, do wzięcia na pojedynczym numerze w ruletce albo trzech Królach na bandycie.
 **VIP room** odblokowuje się po 10 000 żetonów obrotu (złoty stół, żetony do 10K, Gazdziol w koronie).
 **Dług**: przy pustej kieszeni Gazdziol pożycza 500, oddajesz 600 w 3 dni. Po terminie przychodzi Watol windykator:
